@@ -3,6 +3,10 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0E1620">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="TrakFC">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
@@ -112,6 +116,8 @@ main{padding-block:0 32px}
 /* Resumen */
 .sumhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
 .sumhead h2{font-size:18px;margin:0 auto 0 0}
+.sumopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:10px}
+#sMsg:not(:empty){margin-bottom:10px}
 .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
 th,td{padding:8px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
@@ -287,7 +293,13 @@ label.chk input{width:20px;height:20px}
     <div class="sumhead">
       <h2 id="sumTitle">Resumen</h2>
       <select class="sel" id="selScope" aria-label="Período"><option value="sess">Sesión completa</option><option value="block">Bloque actual</option></select>
+      <button class="btn pri" id="sPdf" type="button">Informe PDF</button>
     </div>
+    <div class="sumopts">
+      <label class="f">Nombre de la sesión (sale en el informe)<input id="sTitle" type="text" autocomplete="off" placeholder="Ej.: Martes · físico en cancha"></label>
+      <label class="f">Observaciones (salen en el informe)<input id="sObs" type="text" autocomplete="off" placeholder="Ej.: clima, cambios del plan, ausentes"></label>
+    </div>
+    <div class="small" id="sMsg"></div>
     <div class="tbl"><table>
       <thead><tr><th>Jugador</th><th>Tiempo</th><th>FC media</th><th>FC máx</th><th>% máx</th><th>Tiempo por zona</th><th>Z4</th><th>Z5</th><th title="Carga de entrenamiento (TRIMP de Edwards)">Carga</th><th title="Calorías activas estimadas">Kcal</th><th>Esfuerzo</th><th title="Última recuperación de FC en 60 s">Recup.</th></tr></thead>
       <tbody id="sumBody"></tbody>
@@ -452,7 +464,7 @@ async function loadRoster(){
   } }
 
 /* ---------- Sesión ---------- */
-const sess={state:'idle',accum:0,since:0,block:1,blockStart:0};
+const sess={state:'idle',accum:0,since:0,block:1,blockStart:0,t0:0,marks:[],title:'',obs:''};
 const elapsed=()=>(sess.accum+(sess.state==='running'?(Date.now()-sess.since):0))/1000;
 const bands=new Map(); let order=0; let history=[]; let closedBlocks=[]; let openKey=null; let demoMode=false;
 const accZero=()=>({t:0,sum:0,max:0,z:[0,0,0,0,0,0],trimp:0,kcal:0});
@@ -491,7 +503,8 @@ function setPlay(){ const st=sess.state;
 function playPause(){
   const now=Date.now();
   if(sess.state==='idle'||sess.state==='done'){
-    sess.accum=0; sess.since=now; sess.block=1; sess.blockStart=0; sess.state='running'; history=[]; closedBlocks=[]; hrrList=[];
+    sess.accum=0; sess.since=now; sess.t0=now; sess.marks=[]; sess.block=1; sess.blockStart=0; sess.state='running'; history=[]; closedBlocks=[]; hrrList=[];
+    sess.obs=''; $('#sObs').value=''; $('#sMsg').textContent='';
     for(const b of bands.values()){ b.acc=accZero(); b.bacc=accZero(); b.samples=[]; b.lastS=-99; b.lastT=0; }
     log('Sesión iniciada'); if(view==='sum')setView('tiles');
   } else if(sess.state==='running'){ sess.accum+=now-sess.since; sess.state='paused'; log('Sesión en pausa'); }
@@ -502,7 +515,7 @@ function closeBlock(){
   for(const b of bands.values()){ if(b.bacc.t<=0)continue; const s=stats(b.bacc,label(b));
     closedBlocks.push({jugador:label(b),bloque:sess.block,duracion:dur,avg:s.avg,max:s.max,z4:s.z[4],z5:s.z[5],trimp:s.trimp,kcal:s.kcal,eff:s.eff}); }
 }
-function newBlock(){ if(sess.state!=='running')return; closeBlock(); sess.block++; sess.blockStart=elapsed(); for(const b of bands.values()) b.bacc=accZero(); log('Bloque',sess.block,'iniciado'); render(); }
+function newBlock(){ if(sess.state!=='running')return; closeBlock(); sess.block++; sess.blockStart=elapsed(); sess.marks.push(sess.blockStart); for(const b of bands.values()) b.bacc=accZero(); log('Bloque',sess.block,'iniciado'); render(); }
 let stopArm=null;
 function stopSession(){
   const btn=$('#btnStop');
@@ -713,6 +726,7 @@ function render(){
 }
 function renderSum(rows){
   $('#sumTitle').textContent=sess.state==='done'?'Resumen de la sesión ('+hms(elapsed())+')':sess.state==='idle'?'Resumen (todavía no se inició una sesión)':'Resumen en curso';
+  $('#sPdf').disabled=!rows.some(r=>r.b.acc.t>0);
   $('#sumBody').innerHTML=rows.map(r=>{ const s=r.s;
     return '<tr data-k="'+esc(r.b.key)+'"><td>'+esc(r.l)+'</td><td>'+mmss(s.t)+'</td><td class="num">'+fmt(s.avg)+'</td><td class="num">'+fmt(s.max)+'</td><td>'+(s.pmax?Math.round(s.pmax*100)+'%':'–')+'</td>'+
       '<td class="zcol">'+zbar(s.z)+'<div class="zl">'+[1,2,3,4,5].map(k=>'<span>'+mmss(s.z[k])+'</span>').join('')+'</div></td>'+
@@ -932,11 +946,133 @@ function ecgPdf(item){
   doc.text('Registro generado por TrakFC con una banda deportiva. '+DESC_NOTE,12,205);
   const pad=n=>String(n).padStart(2,'0'), name='ECG_'+item.jugador.replace(/[^\w-]+/g,'_')+'_'+f.getFullYear()+'-'+pad(f.getMonth()+1)+'-'+pad(f.getDate())+'_'+pad(f.getHours())+'-'+pad(f.getMinutes())+'.pdf';
   const blob=doc.output('blob'); fileSave(blob,name,'application/pdf'); }
-async function fileSave(blob,name,type){
+async function fileSave(blob,name,type,msg){
+  msg=msg||$('#rMsg');
   try{ const f=new File([blob],name,{type}); if(navigator.canShare&&navigator.canShare({files:[f]})){ await navigator.share({files:[f],title:name}); return; } }catch(e){ if(e&&e.name==='AbortError')return; }
-  try{ const url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); $('#rMsg').textContent='Informe generado: '+name; }catch(e){ $('#rMsg').textContent='No se pudo guardar el archivo en este navegador.'; } }
+  try{ const url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); msg.textContent='Informe generado: '+name; }catch(e){ msg.textContent='No se pudo guardar el archivo en este navegador.'; } }
 function renderEcgSaved(){ $('#eSavedWrap').hidden=!ecgSaved.length;
   $('#eSaved').innerHTML=ecgSaved.map(x=>'<tr data-ecg="'+x.id+'"><td>'+new Date(x.fecha).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'})+'</td><td>'+esc(x.jugador)+'</td><td class="num">'+fmt(x.hr)+'</td><td>'+x.beats+'</td><td class="num">'+fmt(x.rmssd)+'</td></tr>').join(''); }
+
+/* ---------- Informe PDF de la sesión ---------- */
+const ZRGB=[[200,207,216],[110,123,138],[47,127,193],[46,154,91],[227,160,8],[210,52,62]];
+const lightRgb=(c,k)=>c.map(v=>Math.round(255-(255-v)*k));
+function sessionData(){
+  const nat=(x,y)=>x.l.localeCompare(y.l,'es',{numeric:true,sensitivity:'base'});
+  const rows=[...bands.values()].filter(b=>!b.removed&&b.acc.t>0).map(b=>{ const l=label(b); return {b,l,mx:hrmaxOf(l),s:stats(b.acc,l)}; });
+  rows.sort(sortMode==='red'?(x,y)=>y.s.z[5]-x.s.z[5]||nat(x,y):(sortMode==='load'||sortMode==='pct')?(x,y)=>y.s.trimp-x.s.trimp||nat(x,y):nat);
+  const blocks=closedBlocks.slice();
+  if(sess.state==='running'||sess.state==='paused'){ const dur=elapsed()-sess.blockStart;
+    for(const r of rows){ if(r.b.bacc.t<=0)continue; const s=stats(r.b.bacc,r.l); blocks.push({jugador:r.l,bloque:sess.block,duracion:dur,avg:s.avg,max:s.max,z4:s.z[4],z5:s.z[5],trimp:s.trimp,kcal:s.kcal,eff:s.eff}); } }
+  return {rows,blocks}; }
+function sessionPdf(){
+  const msg=$('#sMsg'), J=window.jspdf&&window.jspdf.jsPDF;
+  if(!J){ msg.textContent='No se pudo cargar el generador de PDF: revisá la conexión a internet y recargá la página.'; return; }
+  const {rows,blocks}=sessionData(); if(!rows.length){ msg.textContent='Todavía no hay datos: iniciá una sesión.'; return; }
+  const doc=new J({orientation:'landscape',unit:'mm',format:'a4'}), W=297, M=12, CW=W-2*M, BOT=194; let RH=6.2;
+  const ink=()=>doc.setTextColor(20,28,38), mut=()=>doc.setTextColor(90,100,115);
+  const dur=elapsed(), t0=new Date(sess.t0||Date.now()-dur*1000), pad=n=>String(n).padStart(2,'0');
+  const fecha=t0.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+pad(t0.getHours())+':'+pad(t0.getMinutes());
+  const title=(sess.title||'').trim()||'Sesión de entrenamiento';
+  const blkNums=[...new Set(blocks.map(b=>b.bloque))].sort((a,b)=>a-b), nBlk=blkNums.length||1;
+  const avgOf=(arr,f)=>arr.length?arr.reduce((a,r)=>a+f(r),0)/arr.length:0;
+  const dropP=d=>d>=0?'-'+d:'+'+(-d);
+  const effP=e=>e?e+' '+effLabel(e):'–';
+  let y=0, first=true;
+  const head=sub=>{ doc.setFont('helvetica','bold'); doc.setFontSize(16); ink(); doc.text(sub,M,15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); mut(); doc.text('TrakFC  |  '+fecha,W-M,15,{align:'right'});
+    if(first){ first=false; y=22; } else { doc.setFontSize(9); mut(); doc.text(title,M,21); y=25; } };
+  const zbarP=(z,x,yy,w,h)=>{ doc.setFillColor(232,236,241); doc.rect(x,yy,w,h,'F'); const tot=z.slice(1).reduce((a,b)=>a+b,0); if(!tot)return; let xx=x;
+    for(let k=1;k<=5;k++){ const ww=z[k]/tot*w; if(ww>0){ doc.setFillColor(...ZRGB[k]); doc.rect(xx,yy,ww,h,'F'); xx+=ww; } } };
+  // tabla genérica: cols = [titulo, ancho, alineación 'l'|'c'|'r']; una celda con un array dibuja la barra de zonas
+  const table=(cols,data,sub,boldLast)=>{ const TW=cols.reduce((a,c)=>a+c[1],0);
+    const th=()=>{ doc.setFillColor(29,42,56); doc.rect(M,y,TW,6.5,'F'); doc.setFontSize(7.3); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); let x=M;
+      cols.forEach(([n,w,a])=>{ const t=n.toUpperCase(); if(a==='l') doc.text(t,x+2,y+4.4); else if(a==='c') doc.text(t,x+w/2,y+4.4,{align:'center'}); else doc.text(t,x+w-2,y+4.4,{align:'right'}); x+=w; });
+      doc.setFont('helvetica','normal'); y+=6.5; };
+    if(y+6.5+RH>BOT){ doc.addPage(); head(sub); }
+    th();
+    data.forEach((vals,i)=>{ if(y+RH>BOT){ doc.addPage(); head(sub); th(); }
+      const bold=boldLast&&i===data.length-1;
+      if(bold){ doc.setFillColor(226,232,239); doc.rect(M,y,TW,RH,'F'); } else if(i%2===1){ doc.setFillColor(245,247,250); doc.rect(M,y,TW,RH,'F'); }
+      doc.setFontSize(8.5); ink(); doc.setFont('helvetica',bold?'bold':'normal'); let x=M;
+      cols.forEach(([n,w,a],ci)=>{ const v=vals[ci];
+        if(Array.isArray(v)) zbarP(v,x+2,y+RH/2-1.5,w-4,3);
+        else if(a==='l') doc.text(doc.splitTextToSize(String(v),w-3)[0]||'',x+2,y+RH/2+1.2);
+        else if(a==='c') doc.text(String(v),x+w/2,y+RH/2+1.2,{align:'center'});
+        else doc.text(String(v),x+w-2,y+RH/2+1.2,{align:'right'}); x+=w; });
+      doc.setFont('helvetica','normal'); y+=RH; }); };
+  const section=(t,h,sub)=>{ if(y+8+h>BOT){ doc.addPage(); head(sub); } else y+=5; doc.setFontSize(10.5); ink(); doc.setFont('helvetica','bold'); doc.text(t,M,y+3); doc.setFont('helvetica','normal'); y+=6; };
+
+  // Página 1: resumen
+  head('Informe de sesión');
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); ink(); doc.text(title,M,23);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); mut();
+  doc.text('Duración '+hms(dur)+'   |   '+rows.length+' jugadores   |   '+nBlk+(nBlk===1?' bloque':' bloques')+'   |   FC máxima general: '+cfg.hrmax+' lpm'+(sess.state==='done'?'':'   |   sesión en curso'),M,28.5);
+  const cards=[['Duración',hms(dur)],['Jugadores',String(rows.length)],['FC media equipo',fmt(avgOf(rows,r=>r.s.avg||0))+' lpm'],['Carga media',fmt(avgOf(rows,r=>r.s.trimp))],['Z4 + Z5 medio',mmss(avgOf(rows,r=>r.s.z[4]+r.s.z[5]))],['Kcal medias',fmt(avgOf(rows,r=>r.s.kcal))]];
+  const cw=(CW-5*3.5)/6;
+  cards.forEach(([k,v],i)=>{ const x=M+i*(cw+3.5); doc.setFillColor(242,245,248); doc.roundedRect(x,32,cw,14,2,2,'F'); doc.setFontSize(7.5); mut(); doc.text(k.toUpperCase(),x+3,37); doc.setFontSize(12.5); ink(); doc.setFont('helvetica','bold'); doc.text(v,x+3,43.5); doc.setFont('helvetica','normal'); });
+  const zt=[1,2,3,4,5].map(k=>rows.reduce((a,r)=>a+r.s.z[k],0)), ztot=zt.reduce((a,b)=>a+b,0)||1;
+  y=53; doc.setFontSize(9); ink(); doc.setFont('helvetica','bold'); doc.text('Tiempo del equipo por zona',M,y); doc.setFont('helvetica','normal');
+  y+=2; let zx=M; zt.forEach((t,i)=>{ const w=t/ztot*CW; if(w<=0)return; doc.setFillColor(...ZRGB[i+1]); doc.rect(zx,y,w,6,'F');
+    if(w>16){ doc.setFontSize(7.5); if(i===3) doc.setTextColor(31,22,0); else doc.setTextColor(255,255,255); doc.text(ZN[i+1]+' '+Math.round(t/ztot*100)+'%',zx+w/2,y+4.2,{align:'center'}); } zx+=w; });
+  y+=11;
+  const obs=(sess.obs||'').trim();
+  if(obs){ doc.setFontSize(9); const lines=doc.splitTextToSize(obs,CW-28); ink(); doc.setFont('helvetica','bold'); doc.text('Observaciones:',M,y); doc.setFont('helvetica','normal'); doc.text(lines,M+26,y); y+=lines.length*4+2.5; }
+  RH=Math.max(5.2,Math.min(6.2,(BOT-y-6.5)/(rows.length+1)));
+  const tz=[0,1,2,3,4,5].map(k=>avgOf(rows,r=>r.s.z[k]));
+  const main=rows.map(r=>{ const s=r.s; return [r.l,mmss(s.t),fmt(s.avg),fmt(s.max),s.pmax?Math.round(s.pmax*100)+'%':'–',s.z,mmss(s.z[4]),mmss(s.z[5]),fmt(s.trimp),fmt(s.kcal),effP(s.eff),r.b.hrrLast?dropP(r.b.hrrLast.drop)+' lpm':'–']; });
+  main.push(['Promedio del equipo',mmss(avgOf(rows,r=>r.s.t)),fmt(avgOf(rows,r=>r.s.avg||0)),fmt(avgOf(rows,r=>r.s.max||0)),Math.round(avgOf(rows,r=>r.s.pmax||0)*100)+'%',tz,mmss(tz[4]),mmss(tz[5]),fmt(avgOf(rows,r=>r.s.trimp)),fmt(avgOf(rows,r=>r.s.kcal)),effP(effortOf(avgOf(rows,r=>r.s.trimp))),'']);
+  table([['Jugador',50,'l'],['Tiempo',16],['FC media',16],['FC máx',15],['% máx',13],['Tiempo por zona',62,'c'],['Z4',15],['Z5',15],['Carga',15],['Kcal',15],['Esfuerzo',22],['Recup. 60 s',19]],main,'Informe de sesión (cont.)',true);
+  RH=6.2;
+
+  // Curvas de FC por jugador
+  const COLS=4, ROWS=5, gx=5, gy=3.5, tEnd=Math.max(60,dur), curveSub='Curvas de frecuencia cardíaca';
+  const curveHead=s=>{ doc.addPage(); head(s); doc.setFontSize(7.5); mut(); doc.text('Bandas de color: zonas de cada jugador según su FC máxima. Líneas punteadas: cambio de bloque.',W-M,21,{align:'right'}); };
+  curveHead(curveSub);
+  const top0=y+1, cwid=(CW-(COLS-1)*gx)/COLS, chh=(BOT-top0-(ROWS-1)*gy)/ROWS;
+  rows.forEach((r,i)=>{ const pi=i%(COLS*ROWS); if(i&&pi===0) curveHead(curveSub+' (cont.)');
+    const x=M+(pi%COLS)*(cwid+gx), yy=top0+Math.floor(pi/COLS)*(chh+gy), mx=r.mx, lo=mx*0.4, py=yy+4.5, ph=chh-8, pw=cwid;
+    doc.setFontSize(8); ink(); doc.setFont('helvetica','bold'); doc.text(doc.splitTextToSize(r.l,pw*0.45)[0]||'',x,yy+3); doc.setFont('helvetica','normal');
+    doc.setFontSize(6.6); mut(); doc.text('media '+fmt(r.s.avg)+' · máx '+fmt(r.s.max)+' · carga '+fmt(r.s.trimp),x+pw,yy+3,{align:'right'});
+    const Y=v=>py+ph*(1-(Math.min(mx,Math.max(lo,v))-lo)/(mx-lo));
+    doc.setFillColor(248,249,251); doc.rect(x,py,pw,ph,'F');
+    [[0.5,0.6,1],[0.6,0.7,2],[0.7,0.8,3],[0.8,0.9,4],[0.9,1,5]].forEach(([a,b,k])=>{ doc.setFillColor(...lightRgb(ZRGB[k],0.22)); doc.rect(x,Y(mx*b),pw,Y(mx*a)-Y(mx*b),'F'); });
+    if(sess.marks&&sess.marks.length){ doc.setDrawColor(120,128,140); doc.setLineWidth(0.15); doc.setLineDashPattern([0.8,0.8],0); sess.marks.forEach(t=>{ const X=x+pw*t/tEnd; doc.line(X,py,X,py+ph); }); doc.setLineDashPattern([],0); }
+    const pts=r.b.samples;
+    if(pts.length>1){ const seg=[]; for(let k=1;k<pts.length;k++) seg.push([pw*(pts[k][0]-pts[k-1][0])/tEnd,Y(pts[k][1])-Y(pts[k-1][1])]); doc.setDrawColor(20,28,38); doc.setLineWidth(0.3); doc.lines(seg,x+pw*pts[0][0]/tEnd,Y(pts[0][1]),[1,1],'S',false); }
+    doc.setFontSize(5.8); mut(); doc.text(String(Math.round(mx*0.9)),x+0.8,Y(mx*0.9)+2.1); doc.text(String(Math.round(mx*0.6)),x+0.8,Y(mx*0.6)+2.1);
+    doc.text("0'",x,yy+chh-0.4); doc.text(Math.round(tEnd/60)+"'",x+pw,yy+chh-0.4,{align:'right'}); });
+
+  // Bloques y recuperación
+  if(blkNums.length>1||hrrList.length){
+    const sub2=blkNums.length>1?(hrrList.length?'Bloques y recuperación':'Bloques'):'Recuperación de la FC';
+    doc.addPage(); head(sub2);
+    if(blkNums.length>1){
+      section('Promedio del equipo por bloque',20,sub2+' (cont.)');
+      const bt=blkNums.map(n=>{ const bs=blocks.filter(b=>b.bloque===n); return ['Bloque '+n,mmss(bs[0].duracion),String(bs.length),fmt(avgOf(bs,b=>b.avg||0)),fmt(avgOf(bs,b=>b.max||0)),mmss(avgOf(bs,b=>b.z4)),mmss(avgOf(bs,b=>b.z5)),fmt(avgOf(bs,b=>b.trimp)),fmt(avgOf(bs,b=>b.kcal))]; });
+      table([['Bloque',33,'l'],['Duración',30],['Jugadores',30],['FC media',30],['FC máx media',34],['Z4 medio',29],['Z5 medio',29],['Carga media',29],['Kcal medias',29]],bt,sub2+' (cont.)',false);
+      section('Carga por jugador y bloque (carga · FC media)',20,sub2+' (cont.)');
+      const shown=blkNums.slice(0,10), bw=Math.min(32,(CW-50)/shown.length);
+      const mt=rows.map(r=>[r.l].concat(shown.map(n=>{ const c=blocks.find(b=>b.jugador===r.l&&b.bloque===n); return c?fmt(c.trimp)+' · '+fmt(c.avg):'–'; })));
+      table([['Jugador',50,'l']].concat(shown.map(n=>['Bloque '+n,bw,'c'])),mt,sub2+' (cont.)',false);
+      if(blkNums.length>shown.length){ y+=4; doc.setFontSize(8); mut(); doc.text('Se muestran los primeros '+shown.length+' bloques de '+blkNums.length+'. El detalle completo está en el CSV.',M,y); }
+    }
+    if(hrrList.length){
+      section('Recuperación de la FC (60 s)',20,sub2+' (cont.)');
+      const ht=hrrList.map(h=>{ const avg=hrrAvg(h.jugador,h.fecha), low=avg!=null&&h.drop<avg*0.8; return [h.jugador,h.momento,String(h.bloque),String(h.start),String(h.end),dropP(h.drop)+' lpm',avg!=null?'-'+fmt(avg)+' lpm':'–',avg==null?'sin promedio':low?'menor que su promedio':'normal']; });
+      table([['Jugador',50,'l'],['Momento',28],['Bloque',22],['FC al terminar',32],['FC a los 60 s',32],['Bajó',27],['Su promedio',30],['Estado',52,'l']],ht,sub2+' (cont.)',false);
+      y+=4; doc.setFontSize(8); mut(); doc.text('Cuánto baja la FC en el primer minuto después de cortar el esfuerzo. Se compara con el promedio de las últimas 5 mediciones del jugador.',M,y); }
+  }
+
+  // Pie en todas las páginas
+  const n=doc.getNumberOfPages(), gen=new Date();
+  for(let p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(7.2); doc.setTextColor(110,118,130);
+    doc.text('Zonas por % de FC máxima: Z1 50-60 · Z2 60-70 · Z3 70-80 · Z4 80-90 · Z5 90-100. Carga: TRIMP de Edwards (minutos en cada zona x 1 a 5). Kcal activas: estimación de Keytel. Recup. 60 s: cuánto bajó la FC en el primer minuto.',M,201);
+    doc.text('Generado por TrakFC el '+gen.toLocaleDateString('es-AR')+' a las '+pad(gen.getHours())+':'+pad(gen.getMinutes())+'.',M,205.5);
+    doc.text('Página '+p+' de '+n,W-M,205.5,{align:'right'}); }
+  const safe=title.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||'Sesion';
+  const name='Sesion_'+safe+'_'+t0.getFullYear()+'-'+pad(t0.getMonth()+1)+'-'+pad(t0.getDate())+'_'+pad(t0.getHours())+'-'+pad(t0.getMinutes())+'.pdf';
+  msg.textContent='';
+  fileSave(doc.output('blob'),name,'application/pdf',msg); }
 
 /* ---------- VFC: intervalos RR y test ---------- */
 function pushRR(b,ms){ if(!(ms>0))return; b.rrAt=Date.now(); b.rrLive=b.rrLive||[]; b.rrLive.push(ms); if(b.rrLive.length>120)b.rrLive.shift();
@@ -1025,6 +1161,10 @@ $('#empty').addEventListener('click',e=>{ const a=e.target.closest('[data-act]')
 document.querySelectorAll('.seg button[data-view]').forEach(x=>x.addEventListener('click',()=>setView(x.dataset.view)));
 $('#selSort').value=sortMode; $('#selSort').addEventListener('change',e=>{sortMode=e.target.value;store.set('trakfc.sort',sortMode);render();});
 $('#selScope').addEventListener('change',e=>{scope=e.target.value;render();});
+$('#sPdf').addEventListener('click',sessionPdf);
+$('#sTitle').value=sess.title=store.get('trakfc.title','');
+$('#sTitle').addEventListener('input',e=>{ sess.title=e.target.value; store.set('trakfc.title',sess.title); });
+$('#sObs').addEventListener('input',e=>{ sess.obs=e.target.value; });
 document.querySelector('main').addEventListener('click',e=>{ const t=e.target.closest('[data-k]'); if(t)openDetail(t.dataset.k); });
 $('#dClose').addEventListener('click',closeDetail);
 $('#ovD').addEventListener('click',e=>{if(e.target.id==='ovD')closeDetail()});
@@ -1058,7 +1198,7 @@ $('#hPlayer').addEventListener('change',renderHrv);
 $('#hCsv').addEventListener('click',()=>{ if(!hrvHist.length){ log('No hay tests de VFC guardados'); return; } csvSave(toCsv(hrvHist.map(h=>({fecha:h.fecha,jugador:h.jugador,posicion:h.posicion,duracion_s:h.dur,fc_media:Math.round(h.hr),resp_min:h.resp?Math.round(h.resp):'',rmssd_ms:h.rmssd.toFixed(1),ln_rmssd:h.ln.toFixed(3),sdnn_ms:h.sdnn.toFixed(1),latidos:h.n,artefactos_pct:Math.round(h.art*100)}))),'trakfc_vfc_'+new Date().toISOString().slice(0,10)+'.csv'); });
 if(navigator.usb) navigator.usb.addEventListener('disconnect',e=>{ if(antStick&&e.device===antStick.dev){ antStick.open_=false; log('Se desenchufó la antena ANT+'); updateAntButton(); } });
 if(!navigator.bluetooth) $('#noBle').hidden=false;
-window.__trakfc={respRate,spectrum,respFromRR,kcalMin,effortOf,startHrr,hrr,describeEcg,feedHr,bands,sess,elapsed,parsePmdEcg,detectR,analyzeEcg,cleanRR,hrvStats,pushRR,hrv,ecg,antHr};
+window.__trakfc={respRate,spectrum,respFromRR,kcalMin,effortOf,startHrr,hrr,describeEcg,feedHr,bands,sess,elapsed,parsePmdEcg,detectR,analyzeEcg,cleanRR,hrvStats,pushRR,hrv,ecg,antHr,sessionPdf,demo,playPause,newBlock};
 setPlay(); render(); refreshSaved(); loadRoster(); updateAntButton();
 // Vista previa dentro de claude.ai (sin Bluetooth): arranca con jugadores de ejemplo
 let framed=false; try{ framed=window.self!==window.top; }catch(e){ framed=true; }
