@@ -13,15 +13,16 @@
   --bg:#0E1620; --surface:#16212D; --surface2:#1D2A38; --line:#2A394B; --fg:#E8EEF4; --muted:#8A9AAD; --accent:#3FD49B; --accent-fg:#06281B;
   --z0:#243243; --z0fg:#C3CFDC; --z1:#6E7B8A; --z2:#2F7FC1; --z3:#2E9A5B; --z4:#E3A008; --z4fg:#1F1600; --z5:#D2343E; --zfg:#FFFFFF;
   --bad:#FF6B6B; --warn:#F2B53A;
+  --paper:#121A24; --gminor:#2B2A35; --gmajor:#5C3039; --trace:#F4F7FA; --rmark:#FF7A82;
   --num:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
   --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
 }
 @media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
   color-scheme:light; --bg:#EDF1F5; --surface:#FFFFFF; --surface2:#F4F7FA; --line:#D3DCE5; --fg:#12202E; --muted:#5B6B7D; --accent:#0A7A52; --accent-fg:#FFFFFF;
-  --z0:#DCE3EA; --z0fg:#3B4A5A; --bad:#C62828; --warn:#A86A00; } }
+  --z0:#DCE3EA; --z0fg:#3B4A5A; --bad:#C62828; --warn:#A86A00; --paper:#FFF5F3; --gminor:#F7D3CE; --gmajor:#EBA098; --trace:#161616; --rmark:#C8323B; } }
 :root[data-theme="light"]{
   color-scheme:light; --bg:#EDF1F5; --surface:#FFFFFF; --surface2:#F4F7FA; --line:#D3DCE5; --fg:#12202E; --muted:#5B6B7D; --accent:#0A7A52; --accent-fg:#FFFFFF;
-  --z0:#DCE3EA; --z0fg:#3B4A5A; --bad:#C62828; --warn:#A86A00; }
+  --z0:#DCE3EA; --z0fg:#3B4A5A; --bad:#C62828; --warn:#A86A00; --paper:#FFF5F3; --gminor:#F7D3CE; --gmajor:#EBA098; --trace:#161616; --rmark:#C8323B; }
 [hidden]{display:none!important}
 *{box-sizing:border-box}
 html,body{background:var(--bg)}
@@ -156,7 +157,33 @@ details.logs{margin-top:28px}
 details.logs summary{cursor:pointer;color:var(--muted);font-size:13px}
 #log{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);max-height:260px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0 0}
 
+/* ECG y VFC */
+.ecgv{display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel h2{font-size:18px;margin:0}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.stat{font-size:14px;color:var(--muted)}
+.stat b{color:var(--fg);font-family:var(--num);font-size:20px;font-variant-numeric:tabular-nums}
+canvas.paper{width:100%;display:block;background:var(--paper);border-radius:8px;border:1px solid var(--line)}
+#ecgLive{height:260px}
+.prog{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--z5);transition:width .3s linear}
+.disc{font-size:13px;color:var(--muted);border-left:3px solid var(--warn);padding:4px 0 4px 10px}
+.hcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.hcard{background:var(--surface2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.hcard .hn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hcard .hv{font-family:var(--num);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.05}
+.hcard .hv small{font-size:14px;color:var(--muted);font-weight:600}
+.hcard .hs{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hcard svg{width:100%;height:34px;display:block}
+.hcard svg polyline{fill:none;stroke:var(--accent);stroke-width:1.6}
+.hcard.off{opacity:.55}
+.chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700}
+.chip.low{background:var(--z5);color:var(--zfg)}.chip.ok{background:var(--z3);color:var(--zfg)}.chip.high{background:var(--z2);color:var(--zfg)}.chip.na{background:var(--surface2);color:var(--muted)}
+.big{font-family:var(--num);font-size:42px;font-weight:700;font-variant-numeric:tabular-nums}
+
 @media (max-width:620px){
+  #ecgLive{height:200px}
   .top .wrap{gap:8px;flex-wrap:nowrap}
   .brand{font-size:19px;gap:6px}
   .clock b{font-size:22px}
@@ -198,6 +225,7 @@ details.logs summary{cursor:pointer;color:var(--muted);font-size:13px}
     <button type="button" data-view="tiles" aria-pressed="true">Cuadros</button>
     <button type="button" data-view="list" aria-pressed="false">Lista</button>
     <button type="button" data-view="sum" aria-pressed="false">Resumen</button>
+    <button type="button" data-view="ecg" aria-pressed="false">ECG y VFC</button>
   </div>
   <select class="sel" id="selSort" aria-label="Orden">
     <option value="name">Orden: nombre</option>
@@ -253,6 +281,55 @@ details.logs summary{cursor:pointer;color:var(--muted);font-size:13px}
       </table></div>
     </div>
   </div>
+  <div id="ecgv" class="ecgv" hidden>
+    <div class="bar"><div class="seg" role="group" aria-label="Herramienta">
+      <button type="button" data-sub="ecg" aria-pressed="true">Electrocardiograma</button>
+      <button type="button" data-sub="hrv" aria-pressed="false">Test de VFC</button>
+    </div></div>
+
+    <section id="pEcg" class="panel">
+      <div class="bar">
+        <h2>Electrocardiograma</h2><span class="spacer"></span>
+        <select class="sel" id="eDev" aria-label="Banda para el ECG"></select>
+        <button class="btn" id="eLive" type="button">Ver en vivo</button>
+        <button class="btn pri" id="eRec" type="button">Grabar 30 s</button>
+      </div>
+      <div class="stat" id="eStat">Conectá una Polar H10 con + Banda Bluetooth. Solo esa banda manda la señal del electrocardiograma.</div>
+      <canvas class="paper" id="ecgLive" aria-label="Electrocardiograma en vivo"></canvas>
+      <div class="prog" id="eProg" hidden><i></i></div>
+      <div id="eReview" hidden>
+        <div class="bar"><h2 id="rTitle">Registro</h2><span class="spacer"></span><button class="btn" id="rCsv" type="button">Exportar CSV</button><button class="btn danger" id="rDel" type="button">Borrar</button></div>
+        <div class="dstats" id="rStats"></div>
+        <canvas class="paper" id="ecgRev" aria-label="Registro de 30 segundos"></canvas>
+      </div>
+      <div id="eSavedWrap" hidden>
+        <h3 class="sub">Registros guardados en este dispositivo</h3>
+        <div class="tbl"><table><thead><tr><th>Fecha</th><th>Jugador</th><th>FC media</th><th>Latidos</th><th>RMSSD</th></tr></thead><tbody id="eSaved"></tbody></table></div>
+      </div>
+      <p class="disc">Papel a 25 mm/s y 10 mm/mV: cada cuadro grande es 0,2 s y 0,5 mV. Una derivación sola, medida en el pecho. No es un estudio médico ni detecta arritmias: si un trazado se ve raro, que lo vea un cardiólogo.</p>
+    </section>
+
+    <section id="pHrv" class="panel" hidden>
+      <div class="bar">
+        <h2>Test de VFC</h2><span class="spacer"></span>
+        <select class="sel" id="hDur" aria-label="Duración"><option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option><option value="300">5 min</option></select>
+        <select class="sel" id="hPos" aria-label="Posición"><option>Acostado</option><option selected>Sentado</option><option>Parado</option></select>
+        <button class="btn pri" id="hGo" type="button">Iniciar test</button>
+      </div>
+      <div class="stat" id="hStat">Mide a todos los jugadores con banda conectada al mismo tiempo. Hacelo a la mañana, en reposo, siempre en la misma posición, respirando normal y sin hablar.</div>
+      <div class="prog" id="hProg" hidden><i></i></div>
+      <div class="hcards" id="hLive"></div>
+      <div id="hResWrap" hidden>
+        <h3 class="sub">Resultado del test</h3>
+        <div class="tbl"><table><thead><tr><th>Jugador</th><th>FC media</th><th>RMSSD</th><th>ln RMSSD</th><th>SDNN</th><th>Latidos</th><th>Artefactos</th><th>Frente a su base</th></tr></thead><tbody id="hRes"></tbody></table></div>
+      </div>
+      <div class="bar"><h3 class="sub" style="margin:8px auto 0 0">Historial</h3>
+        <select class="sel" id="hPlayer" aria-label="Jugador"></select>
+        <button class="btn" id="hCsv" type="button">Exportar historial</button></div>
+      <div class="tbl"><table><thead><tr><th>Fecha</th><th>Jugador</th><th>Posición</th><th>Duración</th><th>FC media</th><th>RMSSD</th><th>ln RMSSD</th><th>Frente a su base</th></tr></thead><tbody id="hHist"></tbody></table></div>
+      <p class="disc">RMSSD en milisegundos. La base de cada jugador es el promedio de sus últimos 7 tests (hacen falta al menos 3). Se marca por debajo o por encima cuando el ln RMSSD se aleja más de medio desvío de esa base.</p>
+    </section>
+  </div>
   <details class="logs"><summary>Registro técnico</summary><pre id="log"></pre></details>
 </main>
 
@@ -307,6 +384,9 @@ function log(...a){const el=$('#log'); el.textContent=(new Date().toLocaleTimeSt
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=(v,d=0)=>v==null||!isFinite(v)?'–':v.toLocaleString('es-AR',{maximumFractionDigits:d,minimumFractionDigits:d});
 const mmss=s=>!isFinite(s)||s<=0?'0:00':Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+const PMD_S='fb005c80-02e7-f387-1cad-8acd2d8df0c8', PMD_CP='fb005c81-02e7-f387-1cad-8acd2d8df0c8', PMD_D='fb005c82-02e7-f387-1cad-8acd2d8df0c8';
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const hex=u=>Array.from(u,x=>x.toString(16).padStart(2,'0')).join(' ');
 const hms=s=>{s=Math.max(0,Math.floor(s)); return Math.floor(s/3600)+':'+String(Math.floor(s/60)%60).padStart(2,'0')+':'+String(s%60).padStart(2,'0');};
 
 /* ---------- Configuración (nombres y FC máx compartidos con TrakLive si están en el mismo sitio) ---------- */
@@ -392,9 +472,29 @@ class Band{
     this.ch.addEventListener('characteristicvaluechanged',this.handler);
     await to(this.ch.startNotifications(),8000);
     try{ const bs=await server.getPrimaryService('battery_service'); const bl=await (await bs.getCharacteristic('battery_level')).readValue(); this.battery=bl.getUint8(0); }catch(e){}
+    this.server=server; try{ this.pmdSvc=await to(server.getPrimaryService(PMD_S),5000); this.pmd=true; }catch(e){ this.pmdSvc=null; this.pmd=false; }
+    if(this.pmd) log(this.device.name||'Banda','tiene electrocardiograma (Polar PMD)');
+    if(this.ecgCb){ const cb=this.ecgCb; this.ecgStart(cb).catch(e=>log('ECG: no se pudo retomar:',e.message)); }
     this.status='Conectado'; this.retry=0; this.reconnecting=false; log(label(this),'conectada'+(this.battery!=null?' (batería '+this.battery+'%)':'')); render();
   }
-  onHr(v){ const flags=v.getUint8(0); const hr=(flags&1)?v.getUint16(1,true):v.getUint8(1); feedHr(this,hr); }
+  onHr(v){ const flags=v.getUint8(0); const hr=(flags&1)?v.getUint16(1,true):v.getUint8(1);
+    this.contact=(flags&4)?!!(flags&2):null;
+    if(flags&0x10){ let o=1+((flags&1)?2:1)+((flags&8)?2:0); while(o+1<v.byteLength){ pushRR(this,v.getUint16(o,true)/1024*1000); o+=2; } }
+    feedHr(this,hr); }
+  async ecgStart(cb){
+    if(!this.pmdSvc) throw new Error('esta banda no manda electrocardiograma');
+    this.ecgCb=cb; this.ecgWarn=false;
+    const cp=await this.pmdSvc.getCharacteristic(PMD_CP), dt=await this.pmdSvc.getCharacteristic(PMD_D);
+    if(this.cp!==cp){ this.cp=cp; cp.addEventListener('characteristicvaluechanged',e=>{ const v=e.target.value, u=new Uint8Array(v.buffer,v.byteOffset,v.byteLength);
+      if(u[0]===0xF0&&u[1]===0x02){ if(u[3]===0) log('ECG: la banda empezó a transmitir'); else log('ECG: la banda rechazó el inicio (código '+u[3]+')'+(u[3]===6?': ya estaba transmitiendo':'')); } }); }
+    if(this.dt!==dt){ this.dt=dt; dt.addEventListener('characteristicvaluechanged',e=>this.onPmd(e.target.value)); }
+    await cp.startNotifications(); await dt.startNotifications();
+    try{ await cp.writeValue(new Uint8Array([0x01,0x00])); }catch(e){} await wait(200);
+    await cp.writeValue(new Uint8Array([0x02,0x00,0x00,0x01,0x82,0x00,0x01,0x01,0x0E,0x00])); }
+  onPmd(v){ const u=new Uint8Array(v.buffer,v.byteOffset,v.byteLength); const out=parsePmdEcg(u);
+    if(!out){ if(!this.ecgWarn){ this.ecgWarn=true; log('ECG: llegó un paquete con otro formato',hex(u.slice(0,12))); } return; }
+    if(this.ecgCb) this.ecgCb(out); }
+  async ecgStop(){ this.ecgCb=null; try{ await this.cp.writeValue(new Uint8Array([0x03,0x00])); }catch(e){} try{ await this.dt.stopNotifications(); }catch(e){} }
   onDisc(){ if(this.removed||this.reconnecting)return; this.reconnecting=true; this.status='Reconectando'; log(label(this),'se desconectó, reintentando'); render();
     const attempt=()=>{ if(this.removed)return; try{this.device.gatt.disconnect()}catch(e){}
       this.connect().catch(e=>{ log(label(this),'reconexión falló:',e.message); const w=Math.min(1000*2**this.retry,8000); this.retry++; setTimeout(attempt,w); }); };
@@ -407,7 +507,7 @@ async function addBandDev(dev){
   try{ await b.connect(); }catch(e){ log((dev.name||'Banda'),'no se pudo conectar:',e.message); b.remove(); bands.delete(b.key); render(); } }
 async function addBand(){
   if(!navigator.bluetooth){$('#noBle').hidden=false;log('Este navegador no tiene Bluetooth web');return}
-  try{ const dev=await navigator.bluetooth.requestDevice({filters:[{services:['heart_rate']}],optionalServices:['battery_service']}); log('Banda elegida:',dev.name||'(sin nombre)'); await addBandDev(dev); refreshSaved(); }
+  try{ const dev=await navigator.bluetooth.requestDevice({filters:[{services:['heart_rate']}],optionalServices:['battery_service',PMD_S]}); log('Banda elegida:',dev.name||'(sin nombre)'); await addBandDev(dev); refreshSaved(); }
   catch(e){ log('No se agregó la banda:',(e&&e.name)||'',(e&&e.message)||e); if(e&&e.name==='SecurityError'){$('#noBle').hidden=false;} } }
 async function savedDevices(){ try{ if(navigator.bluetooth&&navigator.bluetooth.getDevices) return await navigator.bluetooth.getDevices(); }catch(e){} return null; }
 async function refreshSaved(){ const devs=await savedDevices(); const btn=$('#btnSaved'); if(!devs||!devs.length){btn.hidden=true;return}
@@ -467,7 +567,7 @@ class AntStick{
           if(!this.seen.has(num)){ this.seen.set(num,type); log('ANT+: dispositivo',num,'tipo',type,type===120?'(banda de FC)':'(no es banda)'); }
           if(type===120){
             if(this.mode==='channels'){ this.paired=this.paired||new Set(); if(!this.paired.has(num)){ this.paired.add(num); if(this.searching===d[0]){ this.searching=null; this.openNextChannel(); } } }
-            if(!antIgnore.has(num)) antHr(num,d[8]); }
+            if(!antIgnore.has(num)) antHr(num,d[8],d[5]|(d[6]<<8),d[7]); }
         } else if(!this.warnNoExt){ this.warnNoExt=true; log('ANT+: llegan señales sin número de dispositivo'); }
       } else if(id===0x40){ const [,mid,code]=d; if(mid!==1&&code!==0) log('ANT+: la antena rechazó la orden 0x'+mid.toString(16)+' (código '+code+')'); }
       else if(id===0x54){ this.maxCh=d[0]; log('ANT+: la antena tiene',d[0],'canales'); }
@@ -475,7 +575,9 @@ class AntStick{
   async close(){ this.open_=false; clearTimeout(this.watch); clearInterval(this.diag); try{ await this.dev.close(); }catch(e){} }
 }
 let antStick=null;
-function antHr(num,hr){ let b=bands.get('ant:'+num); if(!b){ b=new AntBand(num); bands.set(b.key,b); log('Banda ANT+ detectada:',num); } feedHr(b,hr); }
+function antHr(num,hr,evt,cnt){ let b=bands.get('ant:'+num); if(!b){ b=new AntBand(num); bands.set(b.key,b); log('Banda ANT+ detectada:',num); }
+  if(cnt!=null){ if(b.pc!=null&&cnt!==b.pc&&((cnt-b.pc)&255)===1) pushRR(b,((evt-b.pe)&0xFFFF)/1024*1000); if(b.pc==null||cnt!==b.pc){ b.pc=cnt; b.pe=evt; } }
+  feedHr(b,hr); }
 function updateAntButton(){ const btn=$('#btnAnt'); if(!navigator.usb){btn.hidden=true;return} btn.hidden=false; const on=!!(antStick&&antStick.open_); btn.textContent=on?'Antena ANT+ activa':'+ Antena ANT+'; btn.disabled=on; }
 async function openAnt(){
   try{ antStick=new AntStick(); await antStick.open(); keepAwake(); }
@@ -485,17 +587,23 @@ async function openAnt(){
 /* ---------- Demo ---------- */
 const POS=['Pilar izq.','Hooker','Pilar der.','2ª línea','2ª línea','Ala','Ala','Octavo','Medio scrum','Apertura','Wing','Centro','Centro','Wing','Fullback','Suplente','Suplente'];
 class FakeBand{
-  constructor(i){this.i=i;this.key='demo'+i;this.kind='Demo';this.status='Conectado';this.battery=60+((i*7)%40);initBand(this);this.cur=80+Math.random()*15;this.ph=Math.random()*6;this.fit=0.9+(i%5)*0.04;this.timer=null;}
+  constructor(i){this.i=i;this.key='demo'+i;this.kind='Demo';this.pmd=i===0;this.contact=true;this.status='Conectado';this.battery=60+((i*7)%40);initBand(this);this.cur=80+Math.random()*15;this.ph=Math.random()*6;this.fit=0.9+(i%5)*0.04;this.timer=null;}
   bandKey(){return 'FC:DEMO '+(this.i+1)}
   defLabel(){return (this.i+1)+' · '+POS[this.i]}
   connect(){ const tick=()=>{ if(this.removed)return; const t=Date.now()/1000;
       const work=this.i>=15?0.15:0.55+0.35*Math.sin(t/40+this.ph)+(Math.random()<.04?0.5:0);
-      const tgt=(78+work*110)*this.fit; this.cur+=(tgt-this.cur)*0.18+(Math.random()-.5)*2.5;
-      if(!(this.i===6&&Math.floor(t/25)%4===3)) feedHr(this,Math.round(Math.max(55,Math.min(204,this.cur))));
+      const rest=hrv.state==='running'; const tgt=rest?56+(this.i%6)*3:(78+work*110)*this.fit; this.cur+=(tgt-this.cur)*0.18+(Math.random()-.5)*2.5;
+      if(!(this.i===6&&Math.floor(t/25)%4===3)){ feedHr(this,Math.round(Math.max(55,Math.min(204,this.cur))));
+        let acc=0; while(acc<1000){ const rr=60000/this.cur*(1+(rest?0.07:0.03)*Math.sin(t*1.7+this.ph+acc/400)+(Math.random()-.5)*(rest?0.05:0.02)); pushRR(this,rr); acc+=rr; } }
       this.timer=setTimeout(tick,1000); };
     setTimeout(tick,200+this.i*50); }
-  remove(){this.removed=true;clearTimeout(this.timer)}
+  async ecgStart(cb){ this.ecgCb=cb; let n=0, ph=0; clearInterval(this.ecgT); this.ecgT=setInterval(()=>{ const out=[], per=60/(this.hr||70); for(let k=0;k<73;k++){ ph=(ph+1/FS/per)%1; out.push(synthEcg(n++/FS,ph*per,per)); } if(this.ecgCb)this.ecgCb(out); },561); }
+  async ecgStop(){ this.ecgCb=null; clearInterval(this.ecgT); }
+  remove(){this.removed=true;clearTimeout(this.timer);clearInterval(this.ecgT)}
 }
+function synthEcg(t,tb,per){ const k=Math.min(1,per/0.8), g=(a,m,w)=>a*Math.exp(-((tb-m*k)**2)/(2*w*w));
+  const mv=g(0.14,0.16,0.022)+g(-0.12,0.245,0.008)+g(1.25,0.27,0.0095)+g(-0.28,0.292,0.009)+g(0.32,0.52,0.045)+0.04*Math.sin(t*1.6);
+  return Math.round(mv*1000+(Math.random()-.5)*24); }
 function demo(){
   if(demoMode){ for(const [k,b] of bands) if(k.startsWith('demo')){ b.remove(); bands.delete(k); } demoMode=false; $('#btnDemo').textContent='Demo'; render(); return; }
   demoMode=true; $('#btnDemo').textContent='Quitar demo';
@@ -516,16 +624,17 @@ function zbar(z,cls){ const tot=z.slice(1).reduce((a,b)=>a+b,0); if(!tot) return
   return '<div class="zbar '+(cls||'')+'">'+[1,2,3,4,5].map(k=>z[k]>0?'<i class="b'+k+'" style="width:'+(z[k]/tot*100).toFixed(1)+'%"></i>':'').join('')+'</div>'; }
 function stateText(b){ if(b.status==='Conectando')return 'conectando…'; if(b.status==='Reconectando')return 'reconectando…'; return 'sin señal'; }
 function render(){
-  const rows=rowsData(), has=rows.length>0;
-  $('#empty').hidden=has; $('#team').hidden=!has;
+  const rows=rowsData(), has=rows.length>0, ev=view==='ecg';
+  $('#empty').hidden=has||ev; $('#team').hidden=!has||ev; $('#ecgv').hidden=!ev;
   $('#tiles').hidden=!has||view!=='tiles'; $('#list').hidden=!has||view!=='list'; $('#sum').hidden=!has||view!=='sum';
-  document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.view===view)));
+  document.querySelectorAll('.seg button[data-view]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.view===view)));
   $('#exampleTag').hidden=!demoMode;
   // resumen del equipo
   const onr=rows.filter(r=>r.on); const cnt=[0,0,0,0,0,0]; onr.forEach(r=>cnt[r.z]++);
   $('#avgPct').textContent=onr.length?Math.round(onr.reduce((a,r)=>a+r.pct,0)/onr.length*100)+'%':'–';
   $('#zchips').innerHTML=[5,4,3,2,1].map(k=>'<div class="zc z'+k+'"><b>'+cnt[k]+'</b><span>'+ZN[k]+'</span></div>').join('');
   $('#teamNote').textContent=onr.length+' de '+rows.length+' bandas con señal'+(sess.state!=='idle'?' · bloque '+sess.block:'');
+  if(ev){ renderEcgView(); if(openKey) fillDetail(); return; }
   if(!has){ return; }
   if(view==='tiles'){
     $('#tiles').innerHTML=rows.map(r=>{ const b=r.b, rec=sess.state!=='idle';
@@ -587,6 +696,125 @@ function drawChart(b,mx){
   pts.forEach(([t,v],i)=>{ const X=L+(W-L-R)*t/tEnd, Y=y(v); i?g.lineTo(X,Y):g.moveTo(X,Y); }); g.stroke();
   const [lt,lv]=pts[pts.length-1]; g.fillStyle=col('--fg'); g.beginPath(); g.arc(L+(W-L-R)*lt/tEnd,y(lv),3.5,0,7); g.fill(); }
 
+/* ---------- Electrocardiograma (Polar H10) ---------- */
+const FS=130;
+function parsePmdEcg(u){ if(u.length<13||u[0]!==0x00||u[9]!==0x00) return null; const n=Math.floor((u.length-10)/3), out=new Array(n);
+  for(let i=0;i<n;i++){ const o=10+3*i; let x=u[o]|(u[o+1]<<8)|(u[o+2]<<16); if(x&0x800000)x-=0x1000000; out[i]=x; } return out; }
+const ecg={dev:null,live:false,buf:[],rec:null,lastAt:0,raf:0,review:null};
+let sub=store.get('trakfc.sub','ecg');
+let ecgSaved=store.get('trakfc.ecg',[]);
+function ecgDevices(){ return [...bands.values()].filter(b=>!b.removed&&b.pmd); }
+let eDevSig='';
+function refreshEcgDevices(){ const list=ecgDevices(), sig=list.map(b=>b.key+label(b)).join('|'); if(sig===eDevSig)return; eDevSig=sig; const sel=$('#eDev'), cur=sel.value;
+  sel.innerHTML=list.length?list.map(b=>'<option value="'+esc(b.key)+'">'+esc(label(b))+' · '+esc(b.device&&b.device.name||b.kind)+'</option>').join(''):'<option value="">Sin Polar H10 conectada</option>';
+  if(list.some(b=>b.key===cur)) sel.value=cur; }
+function onEcg(arr){ ecg.lastAt=Date.now(); const B=ecg.buf; for(const x of arr)B.push(x); if(B.length>FS*8)B.splice(0,B.length-FS*8);
+  if(ecg.rec){ ecg.rec.s.push(...arr); const p=Math.min(1,ecg.rec.s.length/(FS*30)); $('#eProg i').style.width=(p*100).toFixed(1)+'%'; $('#eRec').textContent='Grabando… '+Math.ceil(30-ecg.rec.s.length/FS)+' s'; if(ecg.rec.s.length>=FS*30) finishRec(); } }
+async function ecgLiveStart(){ const dev=bands.get($('#eDev').value); if(!dev){ $('#eStat').textContent='Primero conectá una Polar H10 con + Banda Bluetooth. Si ya estaba conectada antes de esta versión, quitala y agregala de nuevo para darle permiso al ECG.'; return false; }
+  try{ ecg.buf=[]; ecg.dev=dev; ecg.live=true; ecg.lastAt=0; ecg.started=Date.now(); await dev.ecgStart(onEcg); keepAwake(); }catch(e){ ecg.live=false; ecg.dev=null; log('ECG: no se pudo iniciar:',e.message); $('#eStat').textContent='No se pudo iniciar el ECG: '+e.message; return false; }
+  updEcgUi(); loopEcg(); return true; }
+async function ecgLiveStop(){ if(ecg.dev) await ecg.dev.ecgStop(); ecg.live=false; ecg.rec=null; ecg.dev=null; updEcgUi(); drawLive(); }
+async function ecgRecord(){ if(ecg.rec){ ecg.rec=null; updEcgUi(); return; } if(!ecg.live&&!(await ecgLiveStart())) return;
+  ecg.rec={s:[],t0:Date.now(),dev:ecg.dev}; $('#eProg').hidden=false; $('#eProg i').style.width='0%'; updEcgUi(); }
+function finishRec(){ const r=ecg.rec; ecg.rec=null; r.s=r.s.slice(0,FS*30); const b=r.dev, a=analyzeEcg(r.s);
+  const item={id:Date.now(),fecha:new Date(r.t0).toISOString(),jugador:label(b),banda:b.bandKey().slice(3),s:r.s.slice(0,FS*30),hr:a.hr,beats:a.beats,rmssd:a.rmssd};
+  ecgSaved.unshift(item); ecgSaved=ecgSaved.slice(0,8); store.set('trakfc.ecg',ecgSaved); log('ECG: registro de 30 s guardado ('+item.jugador+')');
+  showReview(item); updEcgUi(); renderEcgView(); }
+function updEcgUi(){ $('#eLive').textContent=ecg.live?'Detener':'Ver en vivo'; $('#eRec').textContent=ecg.rec?'Grabando…':'Grabar 30 s'; $('#eProg').hidden=!ecg.rec; $('#eDev').disabled=ecg.live; }
+function ecgStatus(){ const el=$('#eStat');
+  if(!ecgDevices().length){ el.innerHTML='Conectá una Polar H10 con <b style="font-size:inherit;font-family:inherit">+ Banda Bluetooth</b>. Solo esa banda manda la señal del electrocardiograma.'; return; }
+  if(!ecg.live){ el.textContent='Elegí la banda y tocá Ver en vivo. Para un trazado limpio, el jugador quieto, sentado y sin hablar.'; return; }
+  const d=ecg.dev; if(!ecg.lastAt){ el.textContent=Date.now()-ecg.started>6000?'La H10 no está mandando la señal. Revisá que el sensor esté húmedo y que no esté conectada a otra app (Polar Beat, Flow).':'Esperando la señal…'; return; }
+  el.innerHTML=(d.contact===false?'<span style="color:var(--bad)">Sin contacto con la piel</span> · ':'')+'FC <b>'+(d.hr??'–')+'</b> lpm · '+esc(label(d))+(ecg.rec?' · grabando':''); }
+function loopEcg(){ cancelAnimationFrame(ecg.raf); const f=()=>{ if(!ecg.live)return; if(view==='ecg'&&sub==='ecg') drawLive(); ecg.raf=requestAnimationFrame(f); }; ecg.raf=requestAnimationFrame(f); }
+function sizeCanvas(c,h){ const dpr=window.devicePixelRatio||1, W=c.clientWidth||600, H=h||c.clientHeight||200; if(h) c.style.height=h+'px';
+  if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){ c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); }
+  const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); return {g,W,H}; }
+function paper(g,x0,y0,W,H,pxs,pxmv){ const cs=getComputedStyle(document.documentElement), col=n=>cs.getPropertyValue(n).trim();
+  g.fillStyle=col('--paper'); g.fillRect(x0,y0,W,H);
+  const lines=(stepX,stepY,c,w)=>{ g.strokeStyle=c; g.lineWidth=w; g.beginPath(); for(let x=x0;x<=x0+W+0.5;x+=stepX){ g.moveTo(Math.round(x)+.5,y0); g.lineTo(Math.round(x)+.5,y0+H); } for(let y=y0+H/2%stepY;y<=y0+H;y+=stepY){ g.moveTo(x0,Math.round(y)+.5); g.lineTo(x0+W,Math.round(y)+.5); } g.stroke(); };
+  if(pxs*0.04>=3) lines(pxs*0.04,pxmv*0.1,col('--gminor'),1);
+  lines(pxs*0.2,pxmv*0.5,col('--gmajor'),1); }
+function median(a){ if(!a.length)return 0; const b=[...a].sort((x,y)=>x-y); return b[b.length>>1]; }
+function trace(g,arr,x0,mid,pxs,pxmv,base){ const cs=getComputedStyle(document.documentElement); g.strokeStyle=cs.getPropertyValue('--trace').trim(); g.lineWidth=1.6; g.lineJoin='round'; g.beginPath();
+  arr.forEach((v,i)=>{ const X=x0+i/FS*pxs, Y=mid-(v-base)/1000*pxmv; i?g.lineTo(X,Y):g.moveTo(X,Y); }); g.stroke(); }
+function drawLive(){ const c=$('#ecgLive'); if(!c||c.offsetParent===null)return; const {g,W,H}=sizeCanvas(c); const win=W>=700?5:3, pxs=W/win, pxmv=pxs*0.4;
+  paper(g,0,0,W,H,pxs,pxmv); ecgStatus();
+  const n=Math.min(ecg.buf.length,win*FS), arr=ecg.buf.slice(ecg.buf.length-n); if(n<2){ g.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--muted').trim(); g.font='14px '+getComputedStyle(document.documentElement).getPropertyValue('--body'); g.textAlign='center'; g.fillText(ecg.live?'Esperando la señal…':'Tocá Ver en vivo para mostrar el trazado',W/2,H/2); return; }
+  trace(g,arr,W-n/FS*pxs,H/2,pxs,pxmv,median(arr)); }
+function detectR(s){ const n=s.length; if(n<FS*2)return [];
+  const sorted=[...s].sort((a,b)=>a-b), lo=sorted[Math.floor(n*0.005)], hi=sorted[Math.floor(n*0.995)], med=sorted[n>>1]; const sign=(hi-med)>=(med-lo)?1:-1;
+  const d=new Array(n).fill(0); for(let i=1;i<n-1;i++){ const x=(s[i+1]-s[i-1]); d[i]=x*x; }
+  const w=Math.round(0.12*FS), m=new Array(n).fill(0); let acc=0; for(let i=0;i<n;i++){ acc+=d[i]; if(i>=w)acc-=d[i-w]; m[i]=acc/w; }
+  const ms=[...m].sort((a,b)=>a-b), thr=0.3*ms[Math.floor(n*0.98)]; const peaks=[]; let i=0;
+  while(i<n){ if(m[i]>thr){ let j=i; while(j<n&&m[j]>thr)j++; let best=-1,bv=-Infinity; for(let k=Math.max(0,i-w);k<Math.min(n,j+4);k++){ const v=sign*s[k]; if(v>bv){bv=v;best=k;} }
+      if(peaks.length&&best-peaks[peaks.length-1]<0.3*FS){ if(sign*s[best]>sign*s[peaks[peaks.length-1]]) peaks[peaks.length-1]=best; } else peaks.push(best); i=j; } else i++; }
+  return peaks; }
+function analyzeEcg(s){ const pk=detectR(s), rr=[]; for(let i=1;i<pk.length;i++) rr.push((pk[i]-pk[i-1])/FS*1000);
+  const c=cleanRR(rr), st=hrvStats(c.nn); return {peaks:pk,beats:pk.length,hr:st.hr,rmssd:st.rmssd,rrMin:rr.length?Math.min(...rr):null,rrMax:rr.length?Math.max(...rr):null}; }
+function showReview(item){ ecg.review=item; $('#eReview').hidden=false; const a=analyzeEcg(item.s);
+  $('#rTitle').textContent=item.jugador+' · '+new Date(item.fecha).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'});
+  $('#rStats').innerHTML=[['FC media',fmt(a.hr)+' <small>lpm</small>'],['Latidos en 30 s',a.beats],['RR más corto',fmt(a.rrMin)+' <small>ms</small>'],['RR más largo',fmt(a.rrMax)+' <small>ms</small>'],['RMSSD',fmt(a.rmssd)+' <small>ms</small>']].map(([k,v])=>'<div><span>'+k+'</span><b>'+v+'</b></div>').join('');
+  drawReview(); }
+function drawReview(){ const item=ecg.review, c=$('#ecgRev'); if(!item||c.offsetParent===null)return; const W=c.clientWidth||600, rowSec=W>=700?10:5, pxs=W/rowSec, pxmv=pxs*0.4, rowH=Math.round(pxmv*3), rows=Math.ceil(item.s.length/FS/rowSec);
+  const {g}=sizeCanvas(c,rows*rowH+(rows-1)*6); const pk=detectR(item.s), cs=getComputedStyle(document.documentElement);
+  for(let r=0;r<rows;r++){ const a=r*rowSec*FS, seg=item.s.slice(a,a+rowSec*FS), y0=r*(rowH+6); paper(g,0,y0,W,rowH,pxs,pxmv); trace(g,seg,0,y0+rowH*0.55,pxs,pxmv,median(seg));
+    g.fillStyle=cs.getPropertyValue('--rmark').trim(); for(const p of pk) if(p>=a&&p<a+rowSec*FS){ const X=(p-a)/FS*pxs; g.beginPath(); g.moveTo(X-4,y0+2); g.lineTo(X+4,y0+2); g.lineTo(X,y0+8); g.fill(); }
+    g.fillStyle=cs.getPropertyValue('--muted').trim(); g.font='11px '+cs.getPropertyValue('--body'); g.textAlign='left'; g.fillText((r*rowSec)+' s',4,y0+rowH-5); } }
+function renderEcgSaved(){ $('#eSavedWrap').hidden=!ecgSaved.length;
+  $('#eSaved').innerHTML=ecgSaved.map(x=>'<tr data-ecg="'+x.id+'"><td>'+new Date(x.fecha).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'})+'</td><td>'+esc(x.jugador)+'</td><td class="num">'+fmt(x.hr)+'</td><td>'+x.beats+'</td><td class="num">'+fmt(x.rmssd)+'</td></tr>').join(''); }
+
+/* ---------- VFC: intervalos RR y test ---------- */
+function pushRR(b,ms){ if(!(ms>0))return; b.rrAt=Date.now(); b.rrLive=b.rrLive||[]; b.rrLive.push(ms); if(b.rrLive.length>120)b.rrLive.shift();
+  if(hrv.state==='running'){ const e=hrv.data[b.key]||(hrv.data[b.key]={b,rr:[]}); e.rr.push(ms); } }
+function cleanRR(rr){ const v=rr.filter(x=>x>=300&&x<=2000); const nn=[]; for(let i=0;i<v.length;i++){ const w=v.slice(Math.max(0,i-2),i+3), m=median(w); if(Math.abs(v[i]-m)<=0.2*m) nn.push(v[i]); }
+  return {nn,art:rr.length?1-nn.length/rr.length:0}; }
+function hrvStats(nn){ if(nn.length<3) return {rmssd:null,ln:null,sdnn:null,hr:nn.length?60000/(nn.reduce((a,b)=>a+b,0)/nn.length):null};
+  let ss=0; for(let i=1;i<nn.length;i++) ss+=(nn[i]-nn[i-1])**2; const rmssd=Math.sqrt(ss/(nn.length-1)), mean=nn.reduce((a,b)=>a+b,0)/nn.length;
+  const sdnn=Math.sqrt(nn.reduce((a,b)=>a+(b-mean)**2,0)/(nn.length-1)); return {rmssd,ln:Math.log(rmssd),sdnn,hr:60000/mean}; }
+const hrv={state:'idle',start:0,dur:180,pos:'Sentado',data:{},timer:0,res:[]};
+let hrvHist=store.get('trakfc.hrv',[]);
+function baseline(jugador,before){ const prev=hrvHist.filter(h=>h.jugador===jugador&&h.fecha<before&&h.ln!=null).sort((a,b)=>a.fecha<b.fecha?1:-1).slice(0,7);
+  if(prev.length<3) return {n:prev.length}; const m=prev.reduce((a,h)=>a+h.ln,0)/prev.length, sd=Math.sqrt(prev.reduce((a,h)=>a+(h.ln-m)**2,0)/(prev.length-1)); return {n:prev.length,m,sd}; }
+function vsBase(h){ const bl=baseline(h.jugador,h.fecha); if(bl.m==null) return '<span class="chip na">sin base ('+bl.n+'/3)</span>';
+  const d=h.ln-bl.m, swc=0.5*bl.sd; return d<-swc?'<span class="chip low">por debajo</span>':d>swc?'<span class="chip high">por encima</span>':'<span class="chip ok">normal</span>'; }
+function hrvStart(){ if(hrv.state==='running'){ clearInterval(hrv.timer); hrv.state='idle'; hrv.data={}; log('Test de VFC cancelado'); renderEcgView(); return; }
+  hrv.dur=+$('#hDur').value; hrv.pos=$('#hPos').value; hrv.data={}; hrv.start=Date.now(); hrv.state='running'; hrv.res=[]; $('#hResWrap').hidden=true; keepAwake();
+  for(const b of bands.values()) if(!b.removed&&live(b)) hrv.data[b.key]={b,rr:[]};
+  log('Test de VFC iniciado:',hrv.dur/60,'min,',hrv.pos);
+  hrv.timer=setInterval(()=>{ const e=(Date.now()-hrv.start)/1000; $('#hProg i').style.width=Math.min(100,e/hrv.dur*100).toFixed(1)+'%'; $('#hGo').textContent='Cancelar ('+mmss(hrv.dur-e)+')'; if(e>=hrv.dur) hrvFinish(); },500);
+  renderEcgView(); }
+function hrvFinish(){ clearInterval(hrv.timer); hrv.state='done'; const fecha=new Date().toISOString(); hrv.res=[];
+  for(const e of Object.values(hrv.data)){ const c=cleanRR(e.rr), st=hrvStats(c.nn), jug=label(e.b);
+    const h={fecha,jugador:jug,posicion:hrv.pos,dur:hrv.dur,hr:st.hr,rmssd:st.rmssd,ln:st.ln,sdnn:st.sdnn,n:c.nn.length,art:c.art};
+    if(c.nn.length>=30&&st.rmssd!=null){ hrvHist.push(h); hrv.res.push(h); } else hrv.res.push(Object.assign(h,{fail:true})); }
+  hrv.res.sort((x,y)=>x.jugador.localeCompare(y.jugador,'es',{numeric:true}));
+  hrvHist=hrvHist.slice(-3000); store.set('trakfc.hrv',hrvHist); log('Test de VFC terminado:',hrv.res.filter(r=>!r.fail).length,'jugadores'); $('#hGo').textContent='Iniciar test'; renderEcgView(); }
+function spark(rr){ if(rr.length<2)return '<svg viewBox="0 0 100 34" preserveAspectRatio="none"></svg>'; const a=rr.slice(-60), mn=Math.min(...a), mx=Math.max(...a), sp=Math.max(40,mx-mn);
+  return '<svg viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><polyline points="'+a.map((v,i)=>(i/(a.length-1)*100).toFixed(1)+','+(31-(v-mn)/sp*28).toFixed(1)).join(' ')+'"/></svg>'; }
+function renderHrv(){
+  const running=hrv.state==='running'; $('#hProg').hidden=!running; if(!running) $('#hGo').textContent='Iniciar test'; $('#hDur').disabled=running; $('#hPos').disabled=running;
+  const list=[...bands.values()].filter(b=>!b.removed);
+  $('#hStat').textContent=running?'Midiendo '+Object.keys(hrv.data).length+' jugadores. Que estén quietos y sin hablar hasta que termine.':list.length?'Mide a todos los jugadores con banda conectada al mismo tiempo. Hacelo a la mañana, en reposo, siempre en la misma posición, respirando normal y sin hablar.':'Conectá las bandas para hacer el test. Abajo podés ver el historial guardado.';
+  $('#hLive').innerHTML=list.sort((a,b)=>label(a).localeCompare(label(b),'es',{numeric:true})).map(b=>{ const hasRR=b.rrAt&&Date.now()-b.rrAt<10000, e=hrv.data[b.key];
+    const src=running&&e?e.rr:(b.rrLive||[]), st=hrvStats(cleanRR(src.slice(-60)).nn);
+    return '<div class="hcard'+(hasRR?'':' off')+'"><span class="hn">'+esc(label(b))+'</span><span class="hv">'+(hasRR&&st.rmssd!=null?fmt(st.rmssd)+' <small>ms RMSSD</small>':'–')+'</span>'+
+      '<span class="hs">'+(hasRR?(running&&e?e.rr.length+' latidos medidos · ':'')+'último RR '+fmt(b.rrLive[b.rrLive.length-1])+' ms':(live(b)?'esta banda no manda intervalos RR':'sin señal'))+'</span>'+(hasRR?spark(src):'')+'</div>'; }).join('');
+  $('#hResWrap').hidden=!hrv.res.length;
+  $('#hRes').innerHTML=hrv.res.map(h=>h.fail?'<tr><td>'+esc(h.jugador)+'</td><td colspan="7" style="text-align:left;color:var(--muted)">Pocos latidos válidos ('+h.n+'): repetí el test con la banda bien húmeda</td></tr>':
+    '<tr><td>'+esc(h.jugador)+'</td><td class="num">'+fmt(h.hr)+'</td><td class="num">'+fmt(h.rmssd,1)+'</td><td>'+fmt(h.ln,2)+'</td><td>'+fmt(h.sdnn,1)+'</td><td>'+h.n+'</td><td>'+fmt(h.art*100)+'%</td><td>'+vsBase(h)+'</td></tr>').join('');
+  const players=[...new Set(hrvHist.map(h=>h.jugador))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true})), sel=$('#hPlayer'), cur=sel.value;
+  const opts='<option value="">Todos los jugadores</option>'+players.map(p=>'<option>'+esc(p)+'</option>').join(''); if(sel.dataset.sig!==opts){ sel.innerHTML=opts; sel.dataset.sig=opts; sel.value=players.includes(cur)?cur:''; }
+  const hist=hrvHist.filter(h=>!sel.value||h.jugador===sel.value).slice().reverse().slice(0,200);
+  $('#hHist').innerHTML=hist.length?hist.map(h=>'<tr><td>'+new Date(h.fecha).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'})+'</td><td>'+esc(h.jugador)+'</td><td>'+esc(h.posicion)+'</td><td>'+mmss(h.dur)+'</td><td class="num">'+fmt(h.hr)+'</td><td class="num">'+fmt(h.rmssd,1)+'</td><td>'+fmt(h.ln,2)+'</td><td>'+vsBase(h)+'</td></tr>').join(''):'<tr><td colspan="8" style="text-align:left;color:var(--muted)">Todavía no hay tests guardados.</td></tr>'; }
+function renderEcgView(){ document.querySelectorAll('[data-sub]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.sub===sub)));
+  $('#pEcg').hidden=sub!=='ecg'; $('#pHrv').hidden=sub!=='hrv';
+  if(sub==='ecg'){ refreshEcgDevices(); updEcgUi(); renderEcgSaved(); if(!ecg.live) drawLive(); else ecgStatus(); if(ecg.review) drawReview(); } else renderHrv(); }
+function csvSave(csv,name){ (async()=>{ try{const f=new File([csv],name,{type:'text/csv'}); if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return}}catch(e){}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();}catch(e){}
+  try{await navigator.clipboard.writeText(csv);log('CSV copiado al portapapeles')}catch(e){} })(); }
+window.addEventListener('resize',()=>{ if(view==='ecg'&&sub==='ecg'){ drawLive(); drawReview(); } });
+
 /* ---------- CSV, ajustes, nombres ---------- */
 function toCsv(rows){ if(!rows.length)return''; const cols=[...new Set(rows.flatMap(r=>Object.keys(r)))]; return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n'); }
 async function exportCsv(){
@@ -619,7 +847,7 @@ $('#btnCfg').addEventListener('click',openCfg);
 $('#cCancel').addEventListener('click',()=>{$('#ovC').hidden=true});
 $('#cSave').addEventListener('click',saveCfg);
 $('#empty').addEventListener('click',e=>{ const a=e.target.closest('[data-act]'); if(!a)return; if(a.dataset.act==='add')addBand(); else demo(); });
-document.querySelectorAll('.seg button').forEach(x=>x.addEventListener('click',()=>setView(x.dataset.view)));
+document.querySelectorAll('.seg button[data-view]').forEach(x=>x.addEventListener('click',()=>setView(x.dataset.view)));
 $('#selSort').value=sortMode; $('#selSort').addEventListener('change',e=>{sortMode=e.target.value;store.set('trakfc.sort',sortMode);render();});
 $('#selScope').addEventListener('change',e=>{scope=e.target.value;render();});
 document.querySelector('main').addEventListener('click',e=>{ const t=e.target.closest('[data-k]'); if(t)openDetail(t.dataset.k); });
@@ -635,9 +863,19 @@ $('#dRemove').addEventListener('click',()=>{ const b=bands.get(openKey); if(b){ 
 $('#nCopy').addEventListener('click',async()=>{ const t=$('#nText'); try{ await navigator.clipboard.writeText(t.value); $('#nMsg').textContent='Copiado'; }catch(e){ t.focus(); t.select(); $('#nMsg').textContent='Texto seleccionado: copialo con el menú'; } });
 $('#nApply').addEventListener('click',()=>{ try{ const j=JSON.parse($('#nText').value); for(const [k,v] of Object.entries(j)) if(typeof v==='string'){ if(v.trim())names[k]=v.trim(); else delete names[k]; } store.set('traklive.names',names); $('#nMsg').textContent='Nombres aplicados'; render(); }catch(e){ $('#nMsg').textContent='El texto no tiene el formato correcto'; } });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeDetail(); $('#ovC').hidden=true; } });
+document.querySelectorAll('[data-sub]').forEach(x=>x.addEventListener('click',()=>{ sub=x.dataset.sub; store.set('trakfc.sub',sub); renderEcgView(); if(sub==='ecg'){ drawLive(); drawReview(); } }));
+$('#eLive').addEventListener('click',()=>{ ecg.live?ecgLiveStop():ecgLiveStart(); });
+$('#eRec').addEventListener('click',ecgRecord);
+$('#eSaved').addEventListener('click',e=>{ const t=e.target.closest('[data-ecg]'); if(!t)return; const it=ecgSaved.find(x=>String(x.id)===t.dataset.ecg); if(it){ showReview(it); $('#eReview').scrollIntoView({behavior:'smooth',block:'start'}); } });
+$('#rCsv').addEventListener('click',()=>{ const it=ecg.review; if(!it)return; csvSave('tiempo_s,uV\n'+it.s.map((v,i)=>(i/FS).toFixed(4)+','+v).join('\n'),'ecg_'+it.jugador.replace(/[^\w-]+/g,'_')+'_'+it.fecha.slice(0,16).replace(/[:T]/g,'-')+'.csv'); });
+$('#rDel').addEventListener('click',()=>{ const it=ecg.review; if(!it)return; const b=$('#rDel'); if(!b.dataset.arm){ b.dataset.arm='1'; b.textContent='¿Borrar?'; setTimeout(()=>{ delete b.dataset.arm; b.textContent='Borrar'; },3000); return; }
+  delete b.dataset.arm; b.textContent='Borrar'; ecgSaved=ecgSaved.filter(x=>x.id!==it.id); store.set('trakfc.ecg',ecgSaved); ecg.review=null; $('#eReview').hidden=true; renderEcgView(); });
+$('#hGo').addEventListener('click',hrvStart);
+$('#hPlayer').addEventListener('change',renderHrv);
+$('#hCsv').addEventListener('click',()=>{ if(!hrvHist.length){ log('No hay tests de VFC guardados'); return; } csvSave(toCsv(hrvHist.map(h=>({fecha:h.fecha,jugador:h.jugador,posicion:h.posicion,duracion_s:h.dur,fc_media:Math.round(h.hr),rmssd_ms:h.rmssd.toFixed(1),ln_rmssd:h.ln.toFixed(3),sdnn_ms:h.sdnn.toFixed(1),latidos:h.n,artefactos_pct:Math.round(h.art*100)}))),'trakfc_vfc_'+new Date().toISOString().slice(0,10)+'.csv'); });
 if(navigator.usb) navigator.usb.addEventListener('disconnect',e=>{ if(antStick&&e.device===antStick.dev){ antStick.open_=false; log('Se desenchufó la antena ANT+'); updateAntButton(); } });
 if(!navigator.bluetooth) $('#noBle').hidden=false;
-window.__trakfc={feedHr,bands,sess,elapsed};
+window.__trakfc={feedHr,bands,sess,elapsed,parsePmdEcg,detectR,analyzeEcg,cleanRR,hrvStats,pushRR,hrv,ecg,antHr};
 setPlay(); render(); refreshSaved(); loadRoster(); updateAntButton();
 // Vista previa dentro de claude.ai (sin Bluetooth): arranca con jugadores de ejemplo
 let framed=false; try{ framed=window.self!==window.top; }catch(e){ framed=true; }
