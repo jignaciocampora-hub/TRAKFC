@@ -181,8 +181,24 @@ canvas.paper{width:100%;display:block;background:var(--paper);border-radius:8px;
 .hcard.off{opacity:.55}
 .chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700}
 .chip.low{background:var(--z5);color:var(--zfg)}.chip.ok{background:var(--z3);color:var(--zfg)}.chip.high{background:var(--z2);color:var(--zfg)}.chip.na{background:var(--surface2);color:var(--muted)}
+.tile.alert{animation:alertp 1s 5}
+@keyframes alertp{50%{box-shadow:0 0 0 4px var(--fg)}}
+@media (prefers-reduced-motion:reduce){.tile.alert{animation:none;box-shadow:0 0 0 3px var(--fg)}}
+.toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;flex-direction:column;gap:6px;width:min(440px,calc(100% - 32px));pointer-events:none}
+.toast{background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:10px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.toast.hot{background:var(--z5);color:var(--zfg)}
+.eff{display:inline-flex;align-items:baseline;gap:4px;font-family:var(--num);font-weight:700;font-size:17px}
+.eff small{font-family:var(--body);font-size:11px;font-weight:600;color:var(--muted)}
+label.chk{display:flex;align-items:center;gap:8px;font-size:14px}
+label.chk input{width:20px;height:20px}
+.desc{background:var(--surface2);border-radius:10px;padding:12px 14px;margin:10px 0;display:flex;flex-direction:column;gap:6px}
+.desc .dh{display:flex;align-items:center;gap:8px;font-weight:700}
+.desc ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
+.desc .dn{font-size:13px;color:var(--muted)}
+.chip.warn{background:var(--z4);color:var(--z4fg)}
 .big{font-family:var(--num);font-size:42px;font-weight:700;font-variant-numeric:tabular-nums}
 
+@media (max-width:480px){ .brand{display:none} .clock{margin-left:auto} }
 @media (max-width:620px){
   #ecgLive{height:200px}
   .top .wrap{gap:8px;flex-wrap:nowrap}
@@ -200,6 +216,7 @@ canvas.paper{width:100%;display:block;background:var(--paper);border-radius:8px;
   .cbtn{height:40px;padding:0 10px;min-width:40px}
   .cbtn.play{min-width:70px}
   .cbtn .lbl{display:none}
+  .cbtn.on .lbl{display:inline}
   .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   .tile{min-height:132px;padding:8px 10px 10px}
   .tile .tp{font-size:50px}
@@ -213,6 +230,7 @@ canvas.paper{width:100%;display:block;background:var(--paper);border-radius:8px;
   <div class="ctl">
     <button class="cbtn play" id="btnPlay" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2l10 6-10 6z"/></svg><span id="playLbl">Iniciar</span></button>
     <button class="cbtn" id="btnBlock" type="button" disabled title="Cerrar el bloque actual y empezar otro">+ <span class="lbl">Bloque</span></button>
+    <button class="cbtn" id="btnHrr" type="button" disabled title="Medir cuánto baja la FC en 60 s después del esfuerzo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.5 1.8 8.6A3.9 3.9 0 0 1 8 3.6a3.9 3.9 0 0 1 6.2 5z"/></svg><span class="lbl" id="hrrLbl">Recup.</span></button>
     <button class="cbtn stop" id="btnStop" type="button" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1"/></svg><span class="lbl" id="stopLbl">Finalizar</span></button>
   </div>
   <div class="clock"><b id="clock">0:00:00</b><span id="clockLbl">Sin sesión</span></div>
@@ -271,15 +289,23 @@ canvas.paper{width:100%;display:block;background:var(--paper);border-radius:8px;
       <select class="sel" id="selScope" aria-label="Período"><option value="sess">Sesión completa</option><option value="block">Bloque actual</option></select>
     </div>
     <div class="tbl"><table>
-      <thead><tr><th>Jugador</th><th>Tiempo</th><th>FC media</th><th>FC máx</th><th>% máx</th><th>Tiempo por zona</th><th>Z4</th><th>Z5</th><th title="Carga de entrenamiento (TRIMP de Edwards)">Carga</th></tr></thead>
+      <thead><tr><th>Jugador</th><th>Tiempo</th><th>FC media</th><th>FC máx</th><th>% máx</th><th>Tiempo por zona</th><th>Z4</th><th>Z5</th><th title="Carga de entrenamiento (TRIMP de Edwards)">Carga</th><th title="Calorías activas estimadas">Kcal</th><th>Esfuerzo</th><th title="Última recuperación de FC en 60 s">Recup.</th></tr></thead>
       <tbody id="sumBody"></tbody>
     </table></div>
     <div id="blocksWrap" hidden>
       <h3 class="sub">Bloques cerrados</h3>
       <div class="tbl"><table>
-        <thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>FC media</th><th>FC máx</th><th>Z4</th><th>Z5</th><th>Carga</th></tr></thead>
+        <thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>FC media</th><th>FC máx</th><th>Z4</th><th>Z5</th><th>Carga</th><th>Kcal</th><th>Esfuerzo</th></tr></thead>
         <tbody id="blkBody"></tbody>
       </table></div>
+    </div>
+    <div id="hrrWrap" hidden>
+      <h3 class="sub">Recuperación de la FC (60 s)</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Jugador</th><th>Momento</th><th>Bloque</th><th>FC al terminar</th><th>FC a los 60 s</th><th>Bajó</th><th>Su promedio</th><th></th></tr></thead>
+        <tbody id="hrrBody"></tbody>
+      </table></div>
+      <p class="small">Cuánto baja la FC en el primer minuto después de cortar el esfuerzo. Cuanto más baja, mejor recuperación. Se compara con el promedio de sus últimas 5 mediciones.</p>
     </div>
   </div>
   <div id="ecgv" class="ecgv" hidden>
@@ -301,6 +327,7 @@ canvas.paper{width:100%;display:block;background:var(--paper);border-radius:8px;
       <div id="eReview" hidden>
         <div class="bar"><h2 id="rTitle">Registro</h2><span class="spacer"></span><button class="btn pri" id="rPdf" type="button">Informe PDF</button><button class="btn" id="rCsv" type="button">Exportar CSV</button><button class="btn danger" id="rDel" type="button">Borrar</button></div>
         <div class="dstats" id="rStats"></div>
+        <div class="desc" id="rDesc"></div>
         <canvas class="paper" id="ecgRev" aria-label="Registro de 30 segundos"></canvas>
         <label class="f" style="margin-top:10px">Observaciones (salen en el informe)<input id="rObs" type="text" autocomplete="off" placeholder="Ej.: en reposo, sentado, post-entrenamiento"></label>
         <div class="small" id="rMsg"></div>
@@ -324,17 +351,19 @@ canvas.paper{width:100%;display:block;background:var(--paper);border-radius:8px;
       <div class="hcards" id="hLive"></div>
       <div id="hResWrap" hidden>
         <h3 class="sub">Resultado del test</h3>
-        <div class="tbl"><table><thead><tr><th>Jugador</th><th>FC media</th><th>RMSSD</th><th>ln RMSSD</th><th>SDNN</th><th>Latidos</th><th>Artefactos</th><th>Frente a su base</th></tr></thead><tbody id="hRes"></tbody></table></div>
+        <div class="tbl"><table><thead><tr><th>Jugador</th><th>FC media</th><th>RMSSD</th><th>ln RMSSD</th><th>SDNN</th><th>Resp/min</th><th>VO2 máx est.</th><th>Latidos</th><th>Artefactos</th><th>Frente a su base</th></tr></thead><tbody id="hRes"></tbody></table></div>
       </div>
       <div class="bar"><h3 class="sub" style="margin:8px auto 0 0">Historial</h3>
         <select class="sel" id="hPlayer" aria-label="Jugador"></select>
         <button class="btn" id="hCsv" type="button">Exportar historial</button></div>
-      <div class="tbl"><table><thead><tr><th>Fecha</th><th>Jugador</th><th>Posición</th><th>Duración</th><th>FC media</th><th>RMSSD</th><th>ln RMSSD</th><th>Frente a su base</th></tr></thead><tbody id="hHist"></tbody></table></div>
+      <div class="tbl"><table><thead><tr><th>Fecha</th><th>Jugador</th><th>Posición</th><th>Duración</th><th>FC media</th><th>RMSSD</th><th>ln RMSSD</th><th>Resp/min</th><th>Frente a su base</th></tr></thead><tbody id="hHist"></tbody></table></div>
       <p class="disc">RMSSD en milisegundos. La base de cada jugador es el promedio de sus últimos 7 tests (hacen falta al menos 3). Se marca por debajo o por encima cuando el ln RMSSD se aleja más de medio desvío de esa base.</p>
     </section>
   </div>
   <details class="logs"><summary>Registro técnico</summary><pre id="log"></pre></details>
 </main>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
 
 <div class="ov" id="ovD" hidden>
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="dTitle">
@@ -347,7 +376,12 @@ canvas.paper{width:100%;display:block;background:var(--paper);border-radius:8px;
     <div class="form">
       <label class="f">Nombre del jugador<input id="dName" type="text" autocomplete="off"></label>
       <label class="f">FC máxima (lpm)<input id="dMax" type="number" inputmode="numeric" min="120" max="240" placeholder="usa la general"></label>
+      <label class="f">FC de reposo (lpm)<input id="dRep" type="number" inputmode="numeric" min="30" max="110" placeholder="del último test de VFC"></label>
+      <label class="f">Peso (kg)<input id="dPeso" type="number" inputmode="decimal" min="40" max="160" placeholder="85 si no se carga"></label>
+      <label class="f">Edad<input id="dEdad" type="number" inputmode="numeric" min="12" max="70" placeholder="22 si no se carga"></label>
+      <label class="f">Sexo<select id="dSexo" class="sel" style="height:40px"><option value="M">Masculino</option><option value="F">Femenino</option></select></label>
     </div>
+    <p class="small">Peso, edad y sexo se usan para las calorías. La FC de reposo y la FC máxima, para estimar el VO2 máx.</p>
     <div class="dfoot">
       <button class="btn danger" id="dRemove" type="button">Quitar banda</button>
       <span class="spacer"></span>
@@ -362,6 +396,13 @@ canvas.paper{width:100%;display:block;background:var(--paper);border-radius:8px;
     <div class="form">
       <label class="f">FC máxima general (lpm)<input id="cMax" type="number" inputmode="numeric" min="120" max="240"></label>
       <label class="f">Sin señal después de (s)<input id="cStale" type="number" inputmode="numeric" min="4" max="60"></label>
+    </div>
+    <h3 class="sub">Alertas durante la sesión</h3>
+    <div class="form">
+      <label class="chk"><input id="cAlOn" type="checkbox"> Avisar cuando un jugador se pasa de la FC</label>
+      <label class="chk"><input id="cAlSnd" type="checkbox"> Con sonido</label>
+      <label class="f">Avisar desde (% FC máx)<input id="cAlPct" type="number" inputmode="numeric" min="70" max="100"></label>
+      <label class="f">Avisar si sigue en Z5 más de (s)<input id="cAlZ5" type="number" inputmode="numeric" min="15" max="900"></label>
     </div>
     <p class="small">Zonas por % de FC máxima: Z1 50–60 · Z2 60–70 · Z3 70–80 · Z4 80–90 · Z5 90–100. La carga es el TRIMP de Edwards: minutos en cada zona multiplicados por 1 a 5.</p>
     <h3 class="sub">Nombres de los jugadores</h3>
@@ -395,6 +436,7 @@ const hms=s=>{s=Math.max(0,Math.floor(s)); return Math.floor(s/3600)+':'+String(
 /* ---------- Configuración (nombres y FC máx compartidos con TrakLive si están en el mismo sitio) ---------- */
 const tl=store.get('traklive.cfg',{});
 const cfg=Object.assign({hrmax:tl.hrmax||195,stale:10},store.get('trakfc.cfg',{}));
+cfg.alerts=Object.assign({on:true,sound:true,pct:92,z5s:120},cfg.alerts||{});
 const pcfg=store.get('traklive.player',{});   // por nombre de jugador: {hrmax}
 const names=store.get('traklive.names',{});   // por banda: "FC:<nombre bluetooth>" o "FC:ANT <número>"
 let view=store.get('trakfc.view','tiles'), sortMode=store.get('trakfc.sort','name'), scope='sess';
@@ -413,7 +455,16 @@ async function loadRoster(){
 const sess={state:'idle',accum:0,since:0,block:1,blockStart:0};
 const elapsed=()=>(sess.accum+(sess.state==='running'?(Date.now()-sess.since):0))/1000;
 const bands=new Map(); let order=0; let history=[]; let closedBlocks=[]; let openKey=null; let demoMode=false;
-const accZero=()=>({t:0,sum:0,max:0,z:[0,0,0,0,0,0],trimp:0});
+const accZero=()=>({t:0,sum:0,max:0,z:[0,0,0,0,0,0],trimp:0,kcal:0});
+const prof=l=>Object.assign({peso:null,edad:null,sexo:'M',fcrep:null},pcfg[l]||{});
+function kcalMin(l,hr){ if(hr<90) return 0; const p=prof(l), W=+p.peso||85, A=+p.edad||22; // Keytel et al. 2005
+  const v=p.sexo==='F'?(-20.4022+0.4472*hr-0.1263*W+0.074*A):(-55.0969+0.6309*hr+0.1988*W+0.2017*A); return Math.max(0,v/4.184); }
+const EFF_T=[3,15,35,60,90,125,165,210,260,320];
+const effortOf=t=>{ let e=0; for(const x of EFF_T) if(t>=x) e++; return e; };
+const effLabel=e=>e<=0?'–':e<=3?'Fácil':e<=6?'Moderado':e<=8?'Difícil':'Máximo';
+const effHtml=e=>e>0?'<span class="eff">'+e+' <small>'+effLabel(e)+'</small></span>':'–';
+function restHr(l){ const p=prof(l); if(+p.fcrep>0) return {v:+p.fcrep,src:'cargada'}; const h=(typeof hrvHist!=='undefined'?hrvHist:[]).filter(x=>x.jugador===l&&x.hr).slice(-1)[0]; return h?{v:Math.round(h.hr),src:'test de VFC'}:null; }
+function vo2Of(l){ const r=restHr(l); return r?15.3*hrmaxOf(l)/r.v:null; } // Uth et al. 2004
 
 function initBand(b){ b.order=order++; b.hr=null; b.lastOk=0; b.lastT=0; b.acc=accZero(); b.bacc=accZero(); b.samples=[]; b.lastS=-99; b.removed=false; b.battery=b.battery??null; b.status=b.status||'Conectando'; }
 function label(b){ return names[b.bandKey()]||b.defLabel(); }
@@ -421,14 +472,16 @@ function feedHr(b,hr){
   const now=Date.now(); if(!(hr>=25&&hr<=240))return;
   if(sess.state==='running'){
     if(b.lastT&&b.hr!=null){ const dt=Math.min(5,(now-b.lastT)/1000), z=zoneOf(b.hr/hrmaxOf(label(b)));
-      for(const a of [b.acc,b.bacc]){ a.t+=dt; a.sum+=b.hr*dt; a.z[z]+=dt; a.trimp+=dt/60*Math.max(0,z); } }
+      const kc=kcalMin(label(b),b.hr)*dt/60; for(const a of [b.acc,b.bacc]){ a.t+=dt; a.sum+=b.hr*dt; a.z[z]+=dt; a.trimp+=dt/60*Math.max(0,z); a.kcal+=kc; } }
+    checkAlerts(b,hr,now);
     b.acc.max=Math.max(b.acc.max,hr); b.bacc.max=Math.max(b.bacc.max,hr);
     const e=elapsed(); if(e-b.lastS>=5){ b.lastS=e; b.samples.push([e,hr]);
       history.push({hora:new Date(now).toLocaleTimeString('es-AR'),tiempo:hms(e),jugador:label(b),banda:b.bandKey().slice(3),bloque:sess.block,fc:hr,pct_fcmax:Math.round(hr/hrmaxOf(label(b))*100)}); }
   }
+  b.recent=b.recent||[]; b.recent.push([now,hr]); while(b.recent.length&&now-b.recent[0][0]>30000) b.recent.shift();
   b.hr=hr; b.lastT=now; b.lastOk=now; scheduleRender();
 }
-function stats(a,l){ const avg=a.t>0?a.sum/a.t:null; return {t:a.t,avg,max:a.max||null,pmax:a.max?a.max/hrmaxOf(l):null,z:a.z,trimp:a.trimp}; }
+function stats(a,l){ const avg=a.t>0?a.sum/a.t:null; return {t:a.t,avg,max:a.max||null,pmax:a.max?a.max/hrmaxOf(l):null,z:a.z,trimp:a.trimp,kcal:a.kcal||0,eff:effortOf(a.trimp)}; }
 
 function setPlay(){ const st=sess.state;
   $('#playLbl').textContent=st==='running'?'Pausa':st==='paused'?'Seguir':'Iniciar';
@@ -438,16 +491,16 @@ function setPlay(){ const st=sess.state;
 function playPause(){
   const now=Date.now();
   if(sess.state==='idle'||sess.state==='done'){
-    sess.accum=0; sess.since=now; sess.block=1; sess.blockStart=0; sess.state='running'; history=[]; closedBlocks=[];
+    sess.accum=0; sess.since=now; sess.block=1; sess.blockStart=0; sess.state='running'; history=[]; closedBlocks=[]; hrrList=[];
     for(const b of bands.values()){ b.acc=accZero(); b.bacc=accZero(); b.samples=[]; b.lastS=-99; b.lastT=0; }
     log('Sesión iniciada'); if(view==='sum')setView('tiles');
   } else if(sess.state==='running'){ sess.accum+=now-sess.since; sess.state='paused'; log('Sesión en pausa'); }
   else { sess.since=now; sess.state='running'; for(const b of bands.values()) b.lastT=0; log('Sesión reanudada'); }
-  keepAwake(); setPlay(); render(); }
+  initAudio(); keepAwake(); setPlay(); render(); }
 function closeBlock(){
   const dur=elapsed()-sess.blockStart; if(dur<1)return;
   for(const b of bands.values()){ if(b.bacc.t<=0)continue; const s=stats(b.bacc,label(b));
-    closedBlocks.push({jugador:label(b),bloque:sess.block,duracion:dur,avg:s.avg,max:s.max,z4:s.z[4],z5:s.z[5],trimp:s.trimp}); }
+    closedBlocks.push({jugador:label(b),bloque:sess.block,duracion:dur,avg:s.avg,max:s.max,z4:s.z[4],z5:s.z[5],trimp:s.trimp,kcal:s.kcal,eff:s.eff}); }
 }
 function newBlock(){ if(sess.state!=='running')return; closeBlock(); sess.block++; sess.blockStart=elapsed(); for(const b of bands.values()) b.bacc=accZero(); log('Bloque',sess.block,'iniciado'); render(); }
 let stopArm=null;
@@ -595,7 +648,7 @@ class FakeBand{
   defLabel(){return (this.i+1)+' · '+POS[this.i]}
   connect(){ const tick=()=>{ if(this.removed)return; const t=Date.now()/1000;
       const work=this.i>=15?0.15:0.55+0.35*Math.sin(t/40+this.ph)+(Math.random()<.04?0.5:0);
-      const rest=hrv.state==='running'; const tgt=rest?56+(this.i%6)*3:(78+work*110)*this.fit; this.cur+=(tgt-this.cur)*0.18+(Math.random()-.5)*2.5;
+      const rest=hrv.state==='running'; const tgt=rest?56+(this.i%6)*3:hrr.active?92+(this.i%5)*6:(78+work*110)*this.fit; this.cur+=(tgt-this.cur)*0.18+(Math.random()-.5)*2.5;
       if(!(this.i===6&&Math.floor(t/25)%4===3)){ feedHr(this,Math.round(Math.max(55,Math.min(204,this.cur))));
         let acc=0; while(acc<1000){ const rr=60000/this.cur*(1+(rest?0.07:0.03)*Math.sin(t*1.7+this.ph+acc/400)+(Math.random()-.5)*(rest?0.05:0.02)); pushRR(this,rr); acc+=rr; } }
       this.timer=setTimeout(tick,1000); };
@@ -641,11 +694,13 @@ function render(){
   if(!has){ return; }
   if(view==='tiles'){
     $('#tiles').innerHTML=rows.map(r=>{ const b=r.b, rec=sess.state!=='idle';
-      return '<button type="button" class="tile z'+(r.on?r.z:0)+(r.on?'':' stale')+'" data-k="'+esc(b.key)+'">'+
+      return '<button type="button" class="tile z'+(r.on?r.z:0)+(r.on?'':' stale')+(b.flash&&Date.now()-b.flash<6000?' alert':'')+'" data-k="'+esc(b.key)+'">'+
         '<div class="tn"><b>'+esc(r.l)+'</b>'+(r.on?'<span class="tz">'+ZN[r.z]+'</span>':'')+'</div>'+
         (r.on?'<div class="tp">'+Math.round(r.pct*100)+'<small>%</small></div><div class="tb">'+heart+b.hr+' <small>LPM</small></div>'
              :'<div class="tp">'+stateText(b)+'</div><div class="tb"><small>'+(b.hr!=null?'último '+b.hr+' lpm':esc(b.kind))+'</small></div>')+
-        (rec?'<div class="tf"><span>máx '+(r.s.max||'–')+'</span><span>Z5 '+mmss(r.s.z[5])+'</span></div>'+zbar(r.s.z):
+        (hrr.active&&hrr.data[b.key]?'<div class="tf"><span>Recup. '+mmss(60-(Date.now()-hrr.t0)/1000)+'</span><span>desde '+hrr.data[b.key].start+'</span></div>'+zbar(r.s.z):
+         b.hrrLast&&Date.now()-b.hrrLast.at<180000?'<div class="tf"><span>Recup. '+dropTxt(b.hrrLast.drop)+' lpm</span><span>Esf. '+(r.s.eff||'–')+'</span></div>'+zbar(r.s.z):
+         rec?'<div class="tf"><span>máx '+(r.s.max||'–')+' · Z5 '+mmss(r.s.z[5])+'</span><span>Esf. '+(r.s.eff||'–')+'</span></div>'+zbar(r.s.z):
              '<div class="tf"><span>FC máx '+r.mx+'</span><span>'+(b.battery!=null?'bat. '+b.battery+'%':esc(b.kind))+'</span></div>')+
         '</button>'; }).join('');
   } else if(view==='list'){
@@ -661,9 +716,12 @@ function renderSum(rows){
   $('#sumBody').innerHTML=rows.map(r=>{ const s=r.s;
     return '<tr data-k="'+esc(r.b.key)+'"><td>'+esc(r.l)+'</td><td>'+mmss(s.t)+'</td><td class="num">'+fmt(s.avg)+'</td><td class="num">'+fmt(s.max)+'</td><td>'+(s.pmax?Math.round(s.pmax*100)+'%':'–')+'</td>'+
       '<td class="zcol">'+zbar(s.z)+'<div class="zl">'+[1,2,3,4,5].map(k=>'<span>'+mmss(s.z[k])+'</span>').join('')+'</div></td>'+
-      '<td>'+mmss(s.z[4])+'</td><td>'+mmss(s.z[5])+'</td><td class="num">'+fmt(s.trimp)+'</td></tr>'; }).join('');
+      '<td>'+mmss(s.z[4])+'</td><td>'+mmss(s.z[5])+'</td><td class="num">'+fmt(s.trimp)+'</td><td class="num">'+fmt(s.kcal)+'</td><td>'+effHtml(s.eff)+'</td><td>'+(r.b.hrrLast?dropTxt(r.b.hrrLast.drop):'–')+'</td></tr>'; }).join('');
   $('#blocksWrap').hidden=!closedBlocks.length;
-  $('#blkBody').innerHTML=closedBlocks.map(c=>'<tr><td>'+esc(c.jugador)+'</td><td>'+c.bloque+'</td><td>'+mmss(c.duracion)+'</td><td class="num">'+fmt(c.avg)+'</td><td class="num">'+fmt(c.max)+'</td><td>'+mmss(c.z4)+'</td><td>'+mmss(c.z5)+'</td><td class="num">'+fmt(c.trimp)+'</td></tr>').join('');
+  $('#blkBody').innerHTML=closedBlocks.map(c=>'<tr><td>'+esc(c.jugador)+'</td><td>'+c.bloque+'</td><td>'+mmss(c.duracion)+'</td><td class="num">'+fmt(c.avg)+'</td><td class="num">'+fmt(c.max)+'</td><td>'+mmss(c.z4)+'</td><td>'+mmss(c.z5)+'</td><td class="num">'+fmt(c.trimp)+'</td><td class="num">'+fmt(c.kcal)+'</td><td>'+effHtml(c.eff)+'</td></tr>').join('');
+  $('#hrrWrap').hidden=!hrrList.length;
+  $('#hrrBody').innerHTML=hrrList.map(h=>{ const avg=hrrAvg(h.jugador,h.fecha); const low=avg!=null&&h.drop<avg*0.8;
+    return '<tr><td>'+esc(h.jugador)+'</td><td>'+h.momento+'</td><td>'+h.bloque+'</td><td class="num">'+h.start+'</td><td class="num">'+h.end+'</td><td class="num">'+dropTxt(h.drop)+'</td><td>'+(avg!=null?'↓'+fmt(avg):'–')+'</td><td>'+(avg==null?'<span class="chip na">sin promedio</span>':low?'<span class="chip warn">menor que su promedio</span>':'<span class="chip ok">normal</span>')+'</td></tr>'; }).join('');
 }
 function setView(v){ view=v; store.set('trakfc.view',v); render(); }
 function tickClock(){ const e=elapsed(); $('#clock').textContent=hms(e);
@@ -672,13 +730,14 @@ setInterval(()=>{ tickClock(); },500);
 setInterval(()=>{ render(); },2000); // refresca estados "sin señal"
 
 /* ---------- Detalle del jugador ---------- */
-function openDetail(k){ openKey=k; const b=bands.get(k); if(!b)return; $('#dName').value=label(b); const p=pcfg[label(b)]; $('#dMax').value=p&&p.hrmax?p.hrmax:''; $('#dMax').placeholder='general: '+cfg.hrmax; $('#ovD').hidden=false; fillDetail(); }
+function openDetail(k){ openKey=k; const b=bands.get(k); if(!b)return; $('#dName').value=label(b); const p=pcfg[label(b)]; $('#dMax').value=p&&p.hrmax?p.hrmax:''; $('#dMax').placeholder='general: '+cfg.hrmax;
+  const pr=prof(label(b)); $('#dRep').value=pr.fcrep||''; const rh=restHr(label(b)); $('#dRep').placeholder=rh&&rh.src!=='cargada'?'test de VFC: '+rh.v:'del último test de VFC'; $('#dPeso').value=pr.peso||''; $('#dEdad').value=pr.edad||''; $('#dSexo').value=pr.sexo||'M'; $('#ovD').hidden=false; fillDetail(); }
 function closeDetail(){ openKey=null; $('#ovD').hidden=true; }
 function fillDetail(){ const b=bands.get(openKey); if(!b){closeDetail();return}
   const l=label(b), mx=hrmaxOf(l), on=live(b), pct=on?b.hr/mx:null, z=zoneOf(pct), s=stats(b.acc,l);
   $('#dTitle').textContent=l; $('#dBig').className='dbig z'+(on?z:0); $('#dPct').textContent=on?Math.round(pct*100)+'%':'–'; $('#dBpm').textContent=(on?b.hr:'–')+' lpm';
   $('#dDev').textContent=b.kind+' · '+b.bandKey().slice(3)+(b.battery!=null?' · batería '+b.battery+'%':'')+' · '+(on?'con señal':stateText(b));
-  $('#dStats').innerHTML=[['FC media',fmt(s.avg)],['FC máx alcanzada',fmt(s.max)+(s.pmax?' <small>('+Math.round(s.pmax*100)+'%)</small>':'')],['Tiempo registrado',mmss(s.t)],['Z4',mmss(s.z[4])],['Z5',mmss(s.z[5])],['Carga',fmt(s.trimp)]]
+  $('#dStats').innerHTML=[['FC media',fmt(s.avg)],['FC máx alcanzada',fmt(s.max)+(s.pmax?' <small>('+Math.round(s.pmax*100)+'%)</small>':'')],['Tiempo registrado',mmss(s.t)],['Z4',mmss(s.z[4])],['Z5',mmss(s.z[5])],['Carga',fmt(s.trimp)],['Esfuerzo',s.eff?s.eff+' <small>'+effLabel(s.eff)+'</small>':'–'],['Calorías activas',fmt(s.kcal)+' <small>kcal'+(prof(l).peso?'':' (peso sin cargar)')+'</small>'],['Recup. FC',b.hrrLast?dropTxt(b.hrrLast.drop)+' <small>lpm</small>':'–'],['VO2 máx est.',(v=>v?fmt(v)+' <small>ml/kg/min</small>':'<small>falta FC de reposo</small>')(vo2Of(l))],['Frec. resp.',(h=>h&&h.resp?fmt(h.resp)+' <small>/min (test VFC)</small>':'–')(hrvHist.filter(x=>x.jugador===l).slice(-1)[0])]]
     .map(([k,v])=>'<div><span>'+k+'</span><b>'+v+'</b></div>').join('');
   drawChart(b,mx); }
 function drawChart(b,mx){
@@ -698,6 +757,47 @@ function drawChart(b,mx){
   g.strokeStyle=col('--fg'); g.lineWidth=2; g.lineJoin='round'; g.beginPath();
   pts.forEach(([t,v],i)=>{ const X=L+(W-L-R)*t/tEnd, Y=y(v); i?g.lineTo(X,Y):g.moveTo(X,Y); }); g.stroke();
   const [lt,lv]=pts[pts.length-1]; g.fillStyle=col('--fg'); g.beginPath(); g.arc(L+(W-L-R)*lt/tEnd,y(lv),3.5,0,7); g.fill(); }
+
+/* ---------- Alertas ---------- */
+let actx=null;
+function initAudio(){ try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended') actx.resume(); }catch(e){} }
+function beep(){ if(!cfg.alerts.sound||!actx) return; try{ [0,0.22].forEach(d=>{ const o=actx.createOscillator(), g=actx.createGain(); o.frequency.value=880; o.connect(g); g.connect(actx.destination);
+  const t=actx.currentTime+d; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.16); o.start(t); o.stop(t+0.18); }); }catch(e){} }
+function toast(msg,hot){ const box=$('#toasts'), el=document.createElement('div'); el.className='toast'+(hot?' hot':''); el.textContent=msg; box.appendChild(el); while(box.children.length>4) box.firstChild.remove(); setTimeout(()=>el.remove(),6500); }
+function checkAlerts(b,hr,now){ const A=cfg.alerts; if(!A.on) return; const l=label(b), pct=hr/hrmaxOf(l);
+  if(pct>=A.pct/100){ if(!b.alHi&&(!b.alHiAt||now-b.alHiAt>60000)){ b.alHi=true; b.alHiAt=now; b.flash=now; toast(l+': '+Math.round(pct*100)+'% de su FC máx ('+hr+' lpm)',true); beep(); } }
+  else if(pct<A.pct/100-0.03) b.alHi=false;
+  if(zoneOf(pct)===5){ b.z5since=b.z5since||now; if(!b.alZ5&&now-b.z5since>=A.z5s*1000){ b.alZ5=true; b.flash=now; toast(l+' lleva '+mmss((now-b.z5since)/1000)+' seguidos en Z5',true); beep(); } }
+  else { b.z5since=0; b.alZ5=false; } }
+
+/* ---------- Recuperación de la FC (60 s) ---------- */
+const hrr={active:false,t0:0,data:{},timer:0}; let hrrList=[]; let hrrHist=store.get('trakfc.hrr',[]);
+const dropTxt=d=>d>=0?'↓'+d:'↑'+(-d);
+function hrrAvg(j,before){ const p=hrrHist.filter(h=>h.jugador===j&&h.fecha<before).slice(-5); return p.length?p.reduce((a,h)=>a+h.drop,0)/p.length:null; }
+function startHrr(){
+  if(hrr.active){ clearInterval(hrr.timer); hrr.active=false; hrr.data={}; $('#hrrLbl').textContent='Recup.'; $('#btnHrr').classList.remove('on'); toast('Medición de recuperación cancelada'); render(); return; }
+  const now=Date.now(); hrr.data={};
+  for(const b of bands.values()){ if(b.removed||!live(b)) continue; const rec=(b.recent||[]).filter(x=>now-x[0]<=10000).map(x=>x[1]); hrr.data[b.key]={start:Math.max(b.hr,...rec)}; }
+  if(!Object.keys(hrr.data).length){ toast('No hay bandas con señal para medir'); return; }
+  initAudio(); hrr.active=true; hrr.t0=now; hrr.block=sess.state==='idle'?'–':sess.block; hrr.mom=sess.state==='idle'?new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):hms(elapsed());
+  toast('Recuperación: que corten el esfuerzo. Mido 60 s'); log('Recuperación de FC iniciada con',Object.keys(hrr.data).length,'jugadores');
+  hrr.timer=setInterval(()=>{ const e=(Date.now()-hrr.t0)/1000; $('#hrrLbl').textContent=mmss(60-e); $('#btnHrr').classList.add('on'); if(e>=60) finishHrr(); },500); render(); }
+function finishHrr(){ clearInterval(hrr.timer); hrr.active=false; $('#hrrLbl').textContent='Recup.'; $('#btnHrr').classList.remove('on'); const fecha=new Date().toISOString(); let n=0;
+  for(const [k,d] of Object.entries(hrr.data)){ const b=bands.get(k); if(!b||b.removed||!live(b)) continue; const end=b.hr, drop=d.start-end;
+    const h={fecha,jugador:label(b),momento:hrr.mom,bloque:hrr.block,start:d.start,end,drop}; hrrList.push(h); hrrHist.push(h); b.hrrLast={drop,at:Date.now()}; n++; }
+  hrrHist=hrrHist.slice(-3000); store.set('trakfc.hrr',hrrHist); hrr.data={}; toast('Recuperación medida en '+n+' jugadores'); beep(); log('Recuperación de FC terminada:',n,'jugadores'); render(); }
+setInterval(()=>{ $('#btnHrr').disabled=!hrr.active&&![...bands.values()].some(b=>!b.removed&&live(b)); },1000);
+
+/* ---------- Frecuencia respiratoria (de los latidos) ---------- */
+function spectrum(ts,vs){ if(ts.length<8||ts[ts.length-1]-ts[0]<20) return null; const fs=4, t0=ts[0], T=ts[ts.length-1]-t0, n=Math.floor(T*fs), x=new Array(n); let j=0;
+  for(let i=0;i<n;i++){ const t=t0+i/fs; while(j<ts.length-2&&ts[j+1]<t) j++; const a=ts[j], b=ts[j+1], f=b>a?(t-a)/(b-a):0; x[i]=vs[j]+(vs[j+1]-vs[j])*Math.max(0,Math.min(1,f)); }
+  let sx=0,sy=0,sxy=0,sxx=0; for(let i=0;i<n;i++){ sx+=i; sy+=x[i]; sxy+=i*x[i]; sxx+=i*i; } const sl=(n*sxy-sx*sy)/(n*sxx-sx*sx||1), ic=(sy-sl*sx)/n;
+  for(let i=0;i<n;i++) x[i]=(x[i]-(ic+sl*i))*(0.5-0.5*Math.cos(2*Math.PI*i/(n-1)));
+  const P=[]; for(let f=0.12;f<=0.6001;f+=0.005){ let re=0,im=0; for(let i=0;i<n;i++){ const w=2*Math.PI*f*i/fs; re+=x[i]*Math.cos(w); im-=x[i]*Math.sin(w); } P.push([f,re*re+im*im]); }
+  const mx=Math.max(...P.map(p=>p[1]))||1; return P.map(([f,p])=>[f,p/mx]); }
+function respRate(specs){ const ok=specs.filter(Boolean); if(!ok.length) return null; const sum=ok[0].map(([f],i)=>[f,ok.reduce((a,sp)=>a+sp[i][1],0)/ok.length]);
+  let best=sum[0]; for(const p of sum) if(p[1]>best[1]) best=p; const tot=sum.reduce((a,p)=>a+p[1],0), near=sum.filter(p=>Math.abs(p[0]-best[0])<=0.03).reduce((a,p)=>a+p[1],0); return near/tot>=0.35?best[0]*60:null; }
+function respFromRR(rr){ const ts=[], vs=[]; let t=0; for(const x of rr){ t+=x/1000; if(x>=300&&x<=2000){ ts.push(t); vs.push(x); } } return respRate([spectrum(ts,vs)]); }
 
 /* ---------- Electrocardiograma (Polar H10) ---------- */
 const FS=130;
@@ -754,15 +854,46 @@ function detectR(s){ const n=s.length; if(n<FS*2)return [];
       if(peaks.length&&best-peaks[peaks.length-1]<0.3*FS){ if(sign*s[best]>sign*s[peaks[peaks.length-1]]) peaks[peaks.length-1]=best; } else peaks.push(best); i=j; } else i++; }
   return peaks; }
 function analyzeEcg(s){ const pk=detectR(s), rr=[]; for(let i=1;i<pk.length;i++) rr.push((pk[i]-pk[i-1])/FS*1000);
-  const c=cleanRR(rr), st=hrvStats(c.nn); return {peaks:pk,beats:pk.length,hr:st.hr,rmssd:st.rmssd,rrMin:rr.length?Math.min(...rr):null,rrMax:rr.length?Math.max(...rr):null}; }
+  const c=cleanRR(rr), st=hrvStats(c.nn), m=median(rr), flags=new Set(); let prem=0, pauses=0, irr=0;
+  for(let i=0;i<rr.length;i++){
+    if(rr[i]<0.8*m&&i+1<rr.length&&rr[i+1]>1.1*m){ prem++; flags.add(i+1); }
+    if(rr[i]>Math.max(2000,1.8*m)){ pauses++; flags.add(i+1); }
+    if(i&&Math.abs(rr[i]-rr[i-1])>0.15*m) irr++; }
+  const skip=new Set(); flags.forEach(f=>{ skip.add(f-1); if(rr[f]!=null&&rr[f-1]<0.8*m) skip.add(f); }); const rrN=rr.filter((x,i)=>!skip.has(i));
+  const bad=rr.length?rr.filter(x=>x<300||x>3000).length/rr.length:1;
+  const mean=rrN.length?rrN.reduce((a,b)=>a+b,0)/rrN.length:0, cv=rrN.length>2?Math.sqrt(rrN.reduce((a,b)=>a+(b-mean)**2,0)/(rrN.length-1))/mean:null;
+  // ruido: cuánto se mueve la línea entre latidos (fuera del QRS), en µV
+  let nz=[]; for(let i=1;i<pk.length;i++){ const a=pk[i-1]+Math.round(0.35*FS), b=pk[i]-Math.round(0.12*FS); for(let k=a+1;k<b;k++) nz.push(Math.abs(s[k]-s[k-1])); }
+  const noise=nz.length?median(nz):null, ramp=pk.length?median(pk.map(p=>Math.abs(s[p]-median(s.slice(Math.max(0,p-40),p+40))))):0;
+  const ts=pk.slice(1).map(p=>p/FS), amps=pk.map(p=>s[p]-median(s.slice(Math.max(0,p-40),p+40))).slice(1);
+  const resp=respRate([spectrum(ts,rr),spectrum(ts,amps)]);
+  return {resp,peaks:pk,rr,beats:pk.length,hr:st.hr,rmssd:st.rmssd,rrMin:rr.length?Math.min(...rr):null,rrMax:rr.length?Math.max(...rr):null,art:c.art,prem,pauses,pIrr:rr.length>2?irr/(rr.length-1):0,irr,cv,flags,noise,ramp,bad,nMin:rrN.length?Math.min(...rrN):null,nMax:rrN.length?Math.max(...rrN):null}; }
+function describeEcg(a){
+  const L=[]; const hr=a.hr;
+  if(a.beats<10||a.bad>0.1||(a.noise!=null&&a.ramp&&a.noise>a.ramp*0.12)){
+    return {level:'noise',label:'Señal con ruido',lines:['La señal tiene mucho ruido o se cortó: no se puede describir el ritmo con seguridad.','Repetí el registro con el sensor bien húmedo, la banda ajustada y el jugador quieto, sentado y sin hablar.']}; }
+  L.push('Frecuencia cardíaca media de '+fmt(hr)+' lpm'+(hr<50?': baja para un adulto en reposo, algo habitual en deportistas entrenados.':hr<=100?': dentro del rango habitual en reposo.':': elevada para un registro en reposo. Si el jugador venía de moverse, repetilo después de 5 minutos sentado.'));
+  let level='ok', label='Ritmo regular';
+  if(a.pIrr>0.3&&a.irr>a.prem*3+2){ level='rev'; label='Para revisar'; L.push('Los intervalos entre latidos cambian mucho de un latido a otro: el ritmo se ve irregular durante buena parte del registro.'); }
+  else if(a.prem>0){ level='rev'; label='Para revisar'; L.push('Ritmo mayormente regular, con '+a.prem+(a.prem===1?' latido que llegó':' latidos que llegaron')+' antes de lo esperado (marcados en naranja).'); }
+  else if(a.cv!=null&&a.cv<0.05) L.push('Ritmo regular: los intervalos entre latidos son parejos (de '+fmt(a.nMin)+' a '+fmt(a.nMax)+' ms).');
+  else L.push('Ritmo regular, con cambios graduales del intervalo entre latidos como los que produce la respiración (de '+fmt(a.nMin)+' a '+fmt(a.nMax)+' ms).');
+  if(a.pauses){ level='rev'; label='Para revisar'; L.push('Se '+(a.pauses===1?'detectó una pausa':'detectaron '+a.pauses+' pausas')+' entre latidos más larga de lo esperado (marcada en naranja).'); }
+  if(a.resp) L.push('Frecuencia respiratoria estimada a partir del trazado: '+fmt(a.resp)+' por minuto'+(a.resp>=10&&a.resp<=22?'.':' (fuera de lo habitual en reposo; puede deberse a que habló o se movió).'));
+  L.push('Calidad de la señal: '+(a.bad===0&&a.noise!=null&&a.noise<a.ramp*0.05?'buena.':'aceptable, con algo de ruido.'));
+  if(level==='rev') L.push('Conviene repetir el registro en reposo y mostrárselo a un cardiólogo.');
+  return {level,label,lines:L}; }
+const DESC_NOTE='Descripción automática y orientativa, hecha por la app a partir de una sola derivación. No es un diagnóstico: ante cualquier duda, consultar con un cardiólogo.';
+function renderDesc(a){ const d=describeEcg(a), cls=d.level==='ok'?'ok':d.level==='rev'?'warn':'na';
+  $('#rDesc').innerHTML='<div class="dh">Descripción del registro <span class="chip '+cls+'">'+d.label+'</span></div><ul>'+d.lines.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><div class="dn">'+DESC_NOTE+'</div>'; }
 function showReview(item){ ecg.review=item; $('#eReview').hidden=false; $('#rObs').value=item.obs||''; $('#rMsg').textContent=''; const a=analyzeEcg(item.s);
   $('#rTitle').textContent=item.jugador+' · '+new Date(item.fecha).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'});
-  $('#rStats').innerHTML=[['FC media',fmt(a.hr)+' <small>lpm</small>'],['Latidos en 30 s',a.beats],['RR más corto',fmt(a.rrMin)+' <small>ms</small>'],['RR más largo',fmt(a.rrMax)+' <small>ms</small>'],['RMSSD',fmt(a.rmssd)+' <small>ms</small>']].map(([k,v])=>'<div><span>'+k+'</span><b>'+v+'</b></div>').join('');
-  drawReview(); }
+  $('#rStats').innerHTML=[['FC media',fmt(a.hr)+' <small>lpm</small>'],['Latidos en 30 s',a.beats],['RR más corto',fmt(a.rrMin)+' <small>ms</small>'],['RR más largo',fmt(a.rrMax)+' <small>ms</small>'],['RMSSD',fmt(a.rmssd)+' <small>ms</small>'],['Frec. resp. (est.)',a.resp?fmt(a.resp)+' <small>/min</small>':'–']].map(([k,v])=>'<div><span>'+k+'</span><b>'+v+'</b></div>').join('');
+  renderDesc(a); drawReview(); }
 function drawReview(){ const item=ecg.review, c=$('#ecgRev'); if(!item||c.offsetParent===null)return; const W=c.clientWidth||600, rowSec=W>=700?10:5, pxs=W/rowSec, pxmv=pxs*0.4, rowH=Math.round(pxmv*3), rows=Math.ceil(item.s.length/FS/rowSec);
-  const {g}=sizeCanvas(c,rows*rowH+(rows-1)*6); const pk=detectR(item.s), cs=getComputedStyle(document.documentElement);
+  const {g}=sizeCanvas(c,rows*rowH+(rows-1)*6); const an=analyzeEcg(item.s), pk=an.peaks, cs=getComputedStyle(document.documentElement);
   for(let r=0;r<rows;r++){ const a=r*rowSec*FS, seg=item.s.slice(a,a+rowSec*FS), y0=r*(rowH+6); paper(g,0,y0,W,rowH,pxs,pxmv); trace(g,seg,0,y0+rowH*0.55,pxs,pxmv,median(seg));
-    g.fillStyle=cs.getPropertyValue('--rmark').trim(); for(const p of pk) if(p>=a&&p<a+rowSec*FS){ const X=(p-a)/FS*pxs; g.beginPath(); g.moveTo(X-4,y0+2); g.lineTo(X+4,y0+2); g.lineTo(X,y0+8); g.fill(); }
+    pk.forEach((p,pi)=>{ if(!(p>=a&&p<a+rowSec*FS))return; g.fillStyle=an.flags.has(pi)?'#E8890C':cs.getPropertyValue('--rmark').trim(); const X=(p-a)/FS*pxs; g.beginPath(); g.moveTo(X-4,y0+2); g.lineTo(X+4,y0+2); g.lineTo(X,y0+8); g.fill(); });
     g.fillStyle=cs.getPropertyValue('--muted').trim(); g.font='11px '+cs.getPropertyValue('--body'); g.textAlign='left'; g.fillText((r*rowSec)+' s',4,y0+rowH-5); } }
 function ecgPdf(item){
   const J=window.jspdf&&window.jspdf.jsPDF; if(!J){ $('#rMsg').textContent='No se pudo cargar el generador de PDF: revisá la conexión a internet y recargá la página.'; return; }
@@ -773,10 +904,10 @@ function ecgPdf(item){
   doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(90,100,115); doc.text('TrakFC  |  '+fecha,W-12,15,{align:'right'});
   doc.setFontSize(12); doc.setTextColor(20,28,38); doc.setFont('helvetica','bold'); doc.text(item.jugador,12,23);
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(90,100,115); doc.text('Banda: '+item.banda+'   |   FC máxima de referencia: '+mx+' lpm',12,28.5);
-  const st=[['FC media',fmt(a.hr)+' lpm'],['Latidos en 30 s',String(a.beats)],['RR más corto',fmt(a.rrMin)+' ms'],['RR más largo',fmt(a.rrMax)+' ms'],['RMSSD',fmt(a.rmssd)+' ms']];
-  st.forEach(([k,v],i)=>{ const x=12+i*56; doc.setFillColor(242,245,248); doc.roundedRect(x,32,52,14,2,2,'F'); doc.setFontSize(7.5); doc.setTextColor(90,100,115); doc.text(k.toUpperCase(),x+3,37); doc.setFontSize(12.5); doc.setTextColor(20,28,38); doc.setFont('helvetica','bold'); doc.text(v,x+3,43.5); doc.setFont('helvetica','normal'); });
+  const st=[['FC media',fmt(a.hr)+' lpm'],['Latidos en 30 s',String(a.beats)],['RR más corto',fmt(a.rrMin)+' ms'],['RR más largo',fmt(a.rrMax)+' ms'],['RMSSD',fmt(a.rmssd)+' ms'],['Frec. resp. (est.)',a.resp?fmt(a.resp)+' /min':'-']];
+  st.forEach(([k,v],i)=>{ const x=12+i*46.5; doc.setFillColor(242,245,248); doc.roundedRect(x,32,43,14,2,2,'F'); doc.setFontSize(7.5); doc.setTextColor(90,100,115); doc.text(k.toUpperCase(),x+3,37); doc.setFontSize(12.5); doc.setTextColor(20,28,38); doc.setFont('helvetica','bold'); doc.text(v,x+3,43.5); doc.setFont('helvetica','normal'); });
   // tiras: 25 mm/s, 10 mm/mV
-  const x0=22, sw=250, rowH=40, gap=5; let y0=52;
+  const x0=22, sw=250, rowH=35, gap=4; let y0=50;
   for(let r=0;r<3;r++){
     const a0=r*10*FS, seg=item.s.slice(a0,a0+10*FS); if(!seg.length)break;
     doc.setFillColor(255,246,244); doc.rect(x0,y0,sw,rowH,'F');
@@ -787,14 +918,18 @@ function ecgPdf(item){
     doc.setDrawColor(20,20,20); doc.setLineWidth(0.3); doc.lines([[2,0],[0,-10],[5,0],[0,10],[1,0]],12,mid,[1,1],'S',false);
     const pts=[]; for(let i=1;i<seg.length;i++){ pts.push([25/FS,-(seg[i]-seg[i-1])/1000*10]); }
     let yStart=mid-(seg[0]-base)/1000*10; doc.setLineWidth(0.25); doc.lines(pts,x0,yStart,[1,1],'S',false);
-    doc.setFillColor(200,50,59); for(const p of pk) if(p>=a0&&p<a0+10*FS){ const X=x0+(p-a0)/FS*25; doc.triangle(X-0.9,y0+0.6,X+0.9,y0+0.6,X,y0+2.2,'F'); }
+    pk.forEach((p,pi)=>{ if(!(p>=a0&&p<a0+10*FS))return; if(a.flags.has(pi)) doc.setFillColor(232,137,12); else doc.setFillColor(200,50,59); const X=x0+(p-a0)/FS*25; doc.triangle(X-0.9,y0+0.6,X+0.9,y0+0.6,X,y0+2.2,'F'); });
     doc.setFontSize(7.5); doc.setTextColor(120,110,110); doc.text((r*10)+' s',x0+1,y0+rowH-1.5);
     y0+=rowH+gap; }
-  doc.setFontSize(9); doc.setTextColor(20,28,38);
-  if(item.obs){ doc.setFont('helvetica','bold'); doc.text('Observaciones: ',12,y0+2); doc.setFont('helvetica','normal'); doc.text(doc.splitTextToSize(item.obs,240),40,y0+2); }
+  const d=describeEcg(a); let ty=y0+2;
+  doc.setFontSize(9.5); doc.setTextColor(20,28,38); doc.setFont('helvetica','bold'); doc.text('Descripción del registro:',12,ty);
+  const col=d.level==='ok'?[46,154,91]:d.level==='rev'?[227,160,8]:[150,158,170]; doc.setFillColor(...col); const lw=doc.getTextWidth(d.label)+6; doc.roundedRect(58,ty-3.6,lw,5,2,2,'F'); doc.setTextColor(d.level==='rev'?31:255,d.level==='rev'?22:255,d.level==='rev'?0:255); doc.setFontSize(8.5); doc.text(d.label,61,ty);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(20,28,38); ty+=4.6;
+  const body=doc.splitTextToSize(d.lines.join('  '),272); doc.text(body,12,ty); ty+=body.length*3.8;
+  if(item.obs){ doc.setFont('helvetica','bold'); doc.text('Observaciones:',12,ty); doc.setFont('helvetica','normal'); doc.text(doc.splitTextToSize(item.obs,245),36,ty); }
   doc.setFontSize(7.5); doc.setTextColor(110,118,130);
-  doc.text('25 mm/s  |  10 mm/mV  |  Derivación única de pecho  |  Muestreo 130 Hz. Las marcas rojas indican los latidos detectados. El pulso de la izquierda equivale a 1 mV.',12,201);
-  doc.text('Registro generado por TrakFC con una banda deportiva. No es un estudio médico ni detecta arritmias: ante cualquier duda, consultar con un cardiólogo.',12,205);
+  doc.text('25 mm/s  |  10 mm/mV  |  Derivación única de pecho  |  Muestreo 130 Hz. Las marcas rojas indican los latidos detectados y las naranjas, los que llegaron fuera de tiempo. El pulso de la izquierda equivale a 1 mV.',12,201);
+  doc.text('Registro generado por TrakFC con una banda deportiva. '+DESC_NOTE,12,205);
   const pad=n=>String(n).padStart(2,'0'), name='ECG_'+item.jugador.replace(/[^\w-]+/g,'_')+'_'+f.getFullYear()+'-'+pad(f.getMonth()+1)+'-'+pad(f.getDate())+'_'+pad(f.getHours())+'-'+pad(f.getMinutes())+'.pdf';
   const blob=doc.output('blob'); fileSave(blob,name,'application/pdf'); }
 async function fileSave(blob,name,type){
@@ -825,7 +960,7 @@ function hrvStart(){ if(hrv.state==='running'){ clearInterval(hrv.timer); hrv.st
   renderEcgView(); }
 function hrvFinish(){ clearInterval(hrv.timer); hrv.state='done'; const fecha=new Date().toISOString(); hrv.res=[];
   for(const e of Object.values(hrv.data)){ const c=cleanRR(e.rr), st=hrvStats(c.nn), jug=label(e.b);
-    const h={fecha,jugador:jug,posicion:hrv.pos,dur:hrv.dur,hr:st.hr,rmssd:st.rmssd,ln:st.ln,sdnn:st.sdnn,n:c.nn.length,art:c.art};
+    const rp=respFromRR(e.rr); const h={fecha,jugador:jug,posicion:hrv.pos,dur:hrv.dur,hr:st.hr,rmssd:st.rmssd,ln:st.ln,sdnn:st.sdnn,n:c.nn.length,art:c.art,resp:rp};
     if(c.nn.length>=30&&st.rmssd!=null){ hrvHist.push(h); hrv.res.push(h); } else hrv.res.push(Object.assign(h,{fail:true})); }
   hrv.res.sort((x,y)=>x.jugador.localeCompare(y.jugador,'es',{numeric:true}));
   hrvHist=hrvHist.slice(-3000); store.set('trakfc.hrv',hrvHist); log('Test de VFC terminado:',hrv.res.filter(r=>!r.fail).length,'jugadores'); $('#hGo').textContent='Iniciar test'; renderEcgView(); }
@@ -840,12 +975,12 @@ function renderHrv(){
     return '<div class="hcard'+(hasRR?'':' off')+'"><span class="hn">'+esc(label(b))+'</span><span class="hv">'+(hasRR&&st.rmssd!=null?fmt(st.rmssd)+' <small>ms RMSSD</small>':'–')+'</span>'+
       '<span class="hs">'+(hasRR?(running&&e?e.rr.length+' latidos medidos · ':'')+'último RR '+fmt(b.rrLive[b.rrLive.length-1])+' ms':(live(b)?'esta banda no manda intervalos RR':'sin señal'))+'</span>'+(hasRR?spark(src):'')+'</div>'; }).join('');
   $('#hResWrap').hidden=!hrv.res.length;
-  $('#hRes').innerHTML=hrv.res.map(h=>h.fail?'<tr><td>'+esc(h.jugador)+'</td><td colspan="7" style="text-align:left;color:var(--muted)">Pocos latidos válidos ('+h.n+'): repetí el test con la banda bien húmeda</td></tr>':
-    '<tr><td>'+esc(h.jugador)+'</td><td class="num">'+fmt(h.hr)+'</td><td class="num">'+fmt(h.rmssd,1)+'</td><td>'+fmt(h.ln,2)+'</td><td>'+fmt(h.sdnn,1)+'</td><td>'+h.n+'</td><td>'+fmt(h.art*100)+'%</td><td>'+vsBase(h)+'</td></tr>').join('');
+  $('#hRes').innerHTML=hrv.res.map(h=>h.fail?'<tr><td>'+esc(h.jugador)+'</td><td colspan="9" style="text-align:left;color:var(--muted)">Pocos latidos válidos ('+h.n+'): repetí el test con la banda bien húmeda</td></tr>':
+    '<tr><td>'+esc(h.jugador)+'</td><td class="num">'+fmt(h.hr)+'</td><td class="num">'+fmt(h.rmssd,1)+'</td><td>'+fmt(h.ln,2)+'</td><td>'+fmt(h.sdnn,1)+'</td><td>'+fmt(h.resp)+'</td><td>'+(h.hr?fmt(15.3*hrmaxOf(h.jugador)/h.hr):'–')+'</td><td>'+h.n+'</td><td>'+fmt(h.art*100)+'%</td><td>'+vsBase(h)+'</td></tr>').join('');
   const players=[...new Set(hrvHist.map(h=>h.jugador))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true})), sel=$('#hPlayer'), cur=sel.value;
   const opts='<option value="">Todos los jugadores</option>'+players.map(p=>'<option>'+esc(p)+'</option>').join(''); if(sel.dataset.sig!==opts){ sel.innerHTML=opts; sel.dataset.sig=opts; sel.value=players.includes(cur)?cur:''; }
   const hist=hrvHist.filter(h=>!sel.value||h.jugador===sel.value).slice().reverse().slice(0,200);
-  $('#hHist').innerHTML=hist.length?hist.map(h=>'<tr><td>'+new Date(h.fecha).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'})+'</td><td>'+esc(h.jugador)+'</td><td>'+esc(h.posicion)+'</td><td>'+mmss(h.dur)+'</td><td class="num">'+fmt(h.hr)+'</td><td class="num">'+fmt(h.rmssd,1)+'</td><td>'+fmt(h.ln,2)+'</td><td>'+vsBase(h)+'</td></tr>').join(''):'<tr><td colspan="8" style="text-align:left;color:var(--muted)">Todavía no hay tests guardados.</td></tr>'; }
+  $('#hHist').innerHTML=hist.length?hist.map(h=>'<tr><td>'+new Date(h.fecha).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'})+'</td><td>'+esc(h.jugador)+'</td><td>'+esc(h.posicion)+'</td><td>'+mmss(h.dur)+'</td><td class="num">'+fmt(h.hr)+'</td><td class="num">'+fmt(h.rmssd,1)+'</td><td>'+fmt(h.ln,2)+'</td><td>'+fmt(h.resp)+'</td><td>'+vsBase(h)+'</td></tr>').join(''):'<tr><td colspan="9" style="text-align:left;color:var(--muted)">Todavía no hay tests guardados.</td></tr>'; }
 function renderEcgView(){ document.querySelectorAll('[data-sub]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.sub===sub)));
   $('#pEcg').hidden=sub!=='ecg'; $('#pHrv').hidden=sub!=='hrv';
   if(sub==='ecg'){ refreshEcgDevices(); updEcgUi(); renderEcgSaved(); if(!ecg.live) drawLive(); else ecgStatus(); if(ecg.review) drawReview(); } else renderHrv(); }
@@ -858,17 +993,18 @@ window.addEventListener('resize',()=>{ if(view==='ecg'&&sub==='ecg'){ drawLive()
 function toCsv(rows){ if(!rows.length)return''; const cols=[...new Set(rows.flatMap(r=>Object.keys(r)))]; return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n'); }
 async function exportCsv(){
   const sum=[...bands.values()].filter(b=>!b.removed&&b.acc.t>0).map(b=>{ const l=label(b), s=stats(b.acc,l);
-    return {jugador:l,banda:b.bandKey().slice(3),fc_max_config:hrmaxOf(l),tiempo:hms(s.t),fc_media:Math.round(s.avg),fc_max:s.max,pct_max:Math.round((s.pmax||0)*100),z1:mmss(s.z[1]),z2:mmss(s.z[2]),z3:mmss(s.z[3]),z4:mmss(s.z[4]),z5:mmss(s.z[5]),carga:Math.round(s.trimp)}; });
-  const blk=closedBlocks.map(c=>({jugador:c.jugador,bloque:c.bloque,duracion:mmss(c.duracion),fc_media:Math.round(c.avg||0),fc_max:c.max,z4:mmss(c.z4),z5:mmss(c.z5),carga:Math.round(c.trimp)}));
-  const csv=[toCsv(sum),toCsv(blk),toCsv(history)].filter(Boolean).join('\n\n');
+    return {jugador:l,banda:b.bandKey().slice(3),fc_max_config:hrmaxOf(l),tiempo:hms(s.t),fc_media:Math.round(s.avg),fc_max:s.max,pct_max:Math.round((s.pmax||0)*100),z1:mmss(s.z[1]),z2:mmss(s.z[2]),z3:mmss(s.z[3]),z4:mmss(s.z[4]),z5:mmss(s.z[5]),carga:Math.round(s.trimp),kcal:Math.round(s.kcal),esfuerzo:s.eff,recup_ultima:b.hrrLast?b.hrrLast.drop:'',vo2max_est:(v=>v?v.toFixed(1):'')(vo2Of(l))}; });
+  const blk=closedBlocks.map(c=>({jugador:c.jugador,bloque:c.bloque,duracion:mmss(c.duracion),fc_media:Math.round(c.avg||0),fc_max:c.max,z4:mmss(c.z4),z5:mmss(c.z5),carga:Math.round(c.trimp),kcal:Math.round(c.kcal||0),esfuerzo:c.eff}));
+  const hr_=hrrList.map(h=>({jugador:h.jugador,momento:h.momento,bloque:h.bloque,fc_al_terminar:h.start,fc_60s:h.end,recuperacion_lpm:h.drop}));
+  const csv=[toCsv(sum),toCsv(blk),toCsv(hr_),toCsv(history)].filter(Boolean).join('\n\n');
   if(!csv){ log('Todavía no hay datos: iniciá una sesión'); return; }
   const name='trakfc_'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.csv';
   try{const f=new File([csv],name,{type:'text/csv'}); if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return}}catch(e){}
   try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();}catch(e){}
   try{await navigator.clipboard.writeText(csv);log('CSV copiado al portapapeles')}catch(e){} }
 function namesJson(){ const o={}; for(const b of bands.values()) if(!b.key.startsWith('demo')&&!names[b.bandKey()]) o[b.bandKey()]=''; Object.assign(o,names); for(const k of Object.keys(o)) if(/DEMO/.test(k))delete o[k]; return JSON.stringify(o,null,2); }
-function openCfg(){ $('#cMax').value=cfg.hrmax; $('#cStale').value=cfg.stale; $('#nText').value=namesJson(); $('#nSrc').textContent=rosterInfo+' Si TrakFC está en el mismo sitio que TrakLive, comparten nombres y FC máxima.'; $('#nMsg').textContent=''; $('#ovC').hidden=false; }
-function saveCfg(){ cfg.hrmax=Math.min(240,Math.max(120,+$('#cMax').value||195)); cfg.stale=Math.min(60,Math.max(4,+$('#cStale').value||10)); store.set('trakfc.cfg',cfg); $('#ovC').hidden=true; render(); }
+function openCfg(){ $('#cMax').value=cfg.hrmax; $('#cStale').value=cfg.stale; $('#cAlOn').checked=cfg.alerts.on; $('#cAlSnd').checked=cfg.alerts.sound; $('#cAlPct').value=cfg.alerts.pct; $('#cAlZ5').value=cfg.alerts.z5s; $('#nText').value=namesJson(); $('#nSrc').textContent=rosterInfo+' Si TrakFC está en el mismo sitio que TrakLive, comparten nombres y FC máxima.'; $('#nMsg').textContent=''; $('#ovC').hidden=false; }
+function saveCfg(){ cfg.hrmax=Math.min(240,Math.max(120,+$('#cMax').value||195)); cfg.stale=Math.min(60,Math.max(4,+$('#cStale').value||10)); cfg.alerts={on:$('#cAlOn').checked,sound:$('#cAlSnd').checked,pct:Math.min(100,Math.max(70,+$('#cAlPct').value||92)),z5s:Math.min(900,Math.max(15,+$('#cAlZ5').value||120))}; if(cfg.alerts.sound) initAudio(); store.set('trakfc.cfg',cfg); $('#ovC').hidden=true; render(); }
 let wakeLock=null;
 async function keepAwake(){try{if('wakeLock' in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>wakeLock=null)}}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&bands.size)keepAwake()});
@@ -896,6 +1032,12 @@ $('#ovC').addEventListener('click',e=>{if(e.target.id==='ovC')$('#ovC').hidden=t
 $('#dName').addEventListener('change',()=>{ const b=bands.get(openKey); if(!b)return; const old=label(b), v=$('#dName').value.trim();
   if(v){ names[b.bandKey()]=v; if(pcfg[old]&&!pcfg[v]){ pcfg[v]=pcfg[old]; store.set('traklive.player',pcfg); } } else delete names[b.bandKey()];
   store.set('traklive.names',names); render(); });
+const setProf=(k,v)=>{ const b=bands.get(openKey); if(!b)return; const l=label(b); pcfg[l]=Object.assign({},pcfg[l],{[k]:v}); store.set('traklive.player',pcfg); render(); };
+$('#dRep').addEventListener('change',()=>{ const v=+$('#dRep').value; setProf('fcrep',v>=30&&v<=110?v:undefined); });
+$('#dPeso').addEventListener('change',()=>{ const v=+$('#dPeso').value; setProf('peso',v>=40&&v<=160?v:undefined); });
+$('#dEdad').addEventListener('change',()=>{ const v=+$('#dEdad').value; setProf('edad',v>=12&&v<=70?v:undefined); });
+$('#dSexo').addEventListener('change',()=>setProf('sexo',$('#dSexo').value));
+$('#btnHrr').addEventListener('click',startHrr);
 $('#dMax').addEventListener('change',()=>{ const b=bands.get(openKey); if(!b)return; const l=label(b), v=+$('#dMax').value;
   pcfg[l]=Object.assign({},pcfg[l],{hrmax:v>=120&&v<=240?v:undefined}); store.set('traklive.player',pcfg); render(); });
 $('#dRemove').addEventListener('click',()=>{ const b=bands.get(openKey); if(b){ b.remove(); bands.delete(b.key); } closeDetail(); render(); refreshSaved(); });
@@ -913,10 +1055,10 @@ $('#rDel').addEventListener('click',()=>{ const it=ecg.review; if(!it)return; co
   delete b.dataset.arm; b.textContent='Borrar'; ecgSaved=ecgSaved.filter(x=>x.id!==it.id); store.set('trakfc.ecg',ecgSaved); ecg.review=null; $('#eReview').hidden=true; renderEcgView(); });
 $('#hGo').addEventListener('click',hrvStart);
 $('#hPlayer').addEventListener('change',renderHrv);
-$('#hCsv').addEventListener('click',()=>{ if(!hrvHist.length){ log('No hay tests de VFC guardados'); return; } csvSave(toCsv(hrvHist.map(h=>({fecha:h.fecha,jugador:h.jugador,posicion:h.posicion,duracion_s:h.dur,fc_media:Math.round(h.hr),rmssd_ms:h.rmssd.toFixed(1),ln_rmssd:h.ln.toFixed(3),sdnn_ms:h.sdnn.toFixed(1),latidos:h.n,artefactos_pct:Math.round(h.art*100)}))),'trakfc_vfc_'+new Date().toISOString().slice(0,10)+'.csv'); });
+$('#hCsv').addEventListener('click',()=>{ if(!hrvHist.length){ log('No hay tests de VFC guardados'); return; } csvSave(toCsv(hrvHist.map(h=>({fecha:h.fecha,jugador:h.jugador,posicion:h.posicion,duracion_s:h.dur,fc_media:Math.round(h.hr),resp_min:h.resp?Math.round(h.resp):'',rmssd_ms:h.rmssd.toFixed(1),ln_rmssd:h.ln.toFixed(3),sdnn_ms:h.sdnn.toFixed(1),latidos:h.n,artefactos_pct:Math.round(h.art*100)}))),'trakfc_vfc_'+new Date().toISOString().slice(0,10)+'.csv'); });
 if(navigator.usb) navigator.usb.addEventListener('disconnect',e=>{ if(antStick&&e.device===antStick.dev){ antStick.open_=false; log('Se desenchufó la antena ANT+'); updateAntButton(); } });
 if(!navigator.bluetooth) $('#noBle').hidden=false;
-window.__trakfc={feedHr,bands,sess,elapsed,parsePmdEcg,detectR,analyzeEcg,cleanRR,hrvStats,pushRR,hrv,ecg,antHr};
+window.__trakfc={respRate,spectrum,respFromRR,kcalMin,effortOf,startHrr,hrr,describeEcg,feedHr,bands,sess,elapsed,parsePmdEcg,detectR,analyzeEcg,cleanRR,hrvStats,pushRR,hrv,ecg,antHr};
 setPlay(); render(); refreshSaved(); loadRoster(); updateAntButton();
 // Vista previa dentro de claude.ai (sin Bluetooth): arranca con jugadores de ejemplo
 let framed=false; try{ framed=window.self!==window.top; }catch(e){ framed=true; }
