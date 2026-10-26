@@ -1,0 +1,647 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>TrakFC</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0E1620">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: barra fija arriba (reloj + controles de sesión), fila de vista y zonas, grilla de cuadros por jugador que llena la pantalla del iPad. */
+:root{
+  color-scheme:dark;
+  --bg:#0E1620; --surface:#16212D; --surface2:#1D2A38; --line:#2A394B; --fg:#E8EEF4; --muted:#8A9AAD; --accent:#3FD49B; --accent-fg:#06281B;
+  --z0:#243243; --z0fg:#C3CFDC; --z1:#6E7B8A; --z2:#2F7FC1; --z3:#2E9A5B; --z4:#E3A008; --z4fg:#1F1600; --z5:#D2343E; --zfg:#FFFFFF;
+  --bad:#FF6B6B; --warn:#F2B53A;
+  --num:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+  --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  color-scheme:light; --bg:#EDF1F5; --surface:#FFFFFF; --surface2:#F4F7FA; --line:#D3DCE5; --fg:#12202E; --muted:#5B6B7D; --accent:#0A7A52; --accent-fg:#FFFFFF;
+  --z0:#DCE3EA; --z0fg:#3B4A5A; --bad:#C62828; --warn:#A86A00; } }
+:root[data-theme="light"]{
+  color-scheme:light; --bg:#EDF1F5; --surface:#FFFFFF; --surface2:#F4F7FA; --line:#D3DCE5; --fg:#12202E; --muted:#5B6B7D; --accent:#0A7A52; --accent-fg:#FFFFFF;
+  --z0:#DCE3EA; --z0fg:#3B4A5A; --bad:#C62828; --warn:#A86A00; }
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.4;margin:0;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* Barra superior */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px;flex-wrap:wrap}
+.brand{font-family:var(--num);font-weight:700;font-size:22px;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+.brand i{width:12px;height:12px;border-radius:50%;background:var(--z5);display:inline-block;animation:beat 1s infinite}
+@keyframes beat{0%,100%{transform:scale(.8)}15%{transform:scale(1.15)}30%{transform:scale(.9)}}
+@media (prefers-reduced-motion:reduce){.brand i{animation:none}}
+.clock{display:flex;flex-direction:column;line-height:1;margin-left:auto;text-align:right}
+.clock b{font-family:var(--num);font-weight:700;font-size:30px;font-variant-numeric:tabular-nums}
+.clock span{white-space:nowrap;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+.ctl{display:flex;gap:8px}
+.cbtn{height:44px;min-width:44px;padding:0 14px;border-radius:22px;border:1px solid var(--line);background:var(--surface2);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.cbtn.play{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);min-width:96px}
+.cbtn.stop.arm{background:var(--z5);color:var(--zfg);border-color:var(--z5)}
+.cbtn:disabled{opacity:.4;cursor:default}
+.cbtn svg{width:16px;height:16px;fill:currentColor}
+
+/* Herramientas */
+.tools .wrap{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-block:10px}
+.btn{height:38px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px;white-space:nowrap}
+.btn.pri{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{height:36px;padding:0 12px;border:0;background:none;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+select.sel{height:38px;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:0 8px;font-size:14px;max-width:100%}
+.spacer{flex:1}
+
+/* Resumen del equipo */
+.team .wrap{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;padding-block:2px 12px}
+.tavg{display:flex;align-items:baseline;gap:6px;padding:6px 12px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+.tavg b{font-family:var(--num);font-size:26px;font-variant-numeric:tabular-nums}
+.tavg span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.zchips{display:flex;gap:6px;flex-wrap:wrap}
+.zc{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:54px;padding:4px 8px;border-radius:8px;line-height:1.05}
+.zc b{font-family:var(--num);font-size:22px;font-variant-numeric:tabular-nums}
+.zc span{font-size:11px;font-weight:600;letter-spacing:.04em;opacity:.9}
+.note{font-size:13px;color:var(--muted);align-self:center}
+.example{background:#F2B53A;color:#1F1600;font-weight:600;font-size:13px;padding:6px 10px;border-radius:8px;align-self:center}
+
+/* Colores de zona */
+.z0{background:var(--z0);color:var(--z0fg)} .z1{background:var(--z1);color:var(--zfg)} .z2{background:var(--z2);color:var(--zfg)}
+.z3{background:var(--z3);color:var(--zfg)} .z4{background:var(--z4);color:var(--z4fg)} .z5{background:var(--z5);color:var(--zfg)}
+
+/* Cuadros */
+main{padding-block:0 32px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}
+.tile{position:relative;border-radius:12px;padding:10px 12px 12px;min-height:150px;display:flex;flex-direction:column;border:0;text-align:left;transition:background-color .6s}
+.tile .tn{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
+.tile .tn b{font-weight:700;font-size:16px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-width:0}
+.tile .tz{font-family:var(--num);font-weight:700;font-size:13px;padding:1px 6px;border-radius:5px;background:rgba(0,0,0,.18);white-space:nowrap}
+.tile .tp{font-family:var(--num);font-weight:700;font-size:62px;line-height:.95;margin-top:auto;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.tile .tp small{font-size:26px;font-weight:600;margin-left:1px}
+.tile .tb{font-family:var(--num);font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:6px}
+.tile .tb small{font-size:13px;font-weight:600;opacity:.85;letter-spacing:.04em}
+.tile .tb svg{width:14px;height:14px;fill:currentColor;opacity:.85}
+.tile .tf{display:flex;justify-content:space-between;font-size:12px;font-weight:600;opacity:.9;margin-top:4px;font-variant-numeric:tabular-nums;gap:6px}
+.tile.stale{opacity:.5}
+.tile.stale .tp{font-size:30px;line-height:1.2}
+.zbar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:rgba(0,0,0,.18);margin-top:6px}
+.zbar i{display:block;height:100%}
+.zbar .b1{background:#9AA6B4}.zbar .b2{background:#6FB3EA}.zbar .b3{background:#6CD39A}.zbar .b4{background:#FFD25A}.zbar .b5{background:#FF7A82}
+.tile .zbar{box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+
+/* Lista */
+.list{display:flex;flex-direction:column;gap:6px}
+.row{display:grid;grid-template-columns:minmax(90px,170px) minmax(0,1fr) 64px 58px;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;text-align:left;width:100%}
+.row .rn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .rbar{height:24px;border-radius:6px;background:var(--surface2);position:relative;overflow:hidden}
+.row .rbar i{position:absolute;inset:0 auto 0 0;border-radius:6px;transition:width .6s}
+.row .rbar .m50{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+.row .rv{font-family:var(--num);font-weight:700;font-size:24px;text-align:right;font-variant-numeric:tabular-nums}
+.row .rb{font-family:var(--num);font-size:18px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.row.stale{opacity:.5}
+
+/* Resumen */
+.sumhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.sumhead h2{font-size:18px;margin:0 auto 0 0}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{padding:8px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;background:var(--surface2);position:sticky;top:0}
+th:first-child,td:first-child{text-align:left}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--surface2)}
+tbody tr:last-child td{border-bottom:0}
+td.zcol{min-width:180px}
+td .zbar{height:14px;margin:0;border-radius:4px;background:var(--surface2)}
+td.num{font-family:var(--num);font-size:17px;font-weight:600}
+.zl{display:flex;gap:4px;font-size:11px;color:var(--muted);margin-top:3px;justify-content:space-between}
+h3.sub{font-size:15px;margin:22px 0 8px}
+
+/* Vacío */
+.empty{max-width:640px;margin:28px auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px}
+.empty h2{margin:0 0 6px;font-size:22px;text-wrap:balance}
+.empty p{color:var(--muted);margin:0 0 14px}
+.empty ol{margin:0 0 16px;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.empty .acts{display:flex;flex-wrap:wrap;gap:8px}
+.warnbox{border:1px solid var(--warn);color:var(--fg);background:var(--surface2);border-radius:10px;padding:10px 12px;font-size:14px;margin-top:12px}
+
+/* Detalle y ajustes */
+.ov{position:fixed;inset:0;background:rgba(5,10,16,.6);z-index:20;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;width:min(720px,100%);max-height:100%;overflow:auto;padding:18px}
+.card h2{margin:0;font-size:20px}
+.dhead{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.dbig{border-radius:10px;padding:8px 14px;text-align:center;line-height:1}
+.dbig b{font-family:var(--num);font-size:40px;display:block}
+.dbig span{font-size:12px;font-weight:600}
+.dstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:12px 0}
+.dstats div{background:var(--surface2);border-radius:8px;padding:8px 10px}
+.dstats span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.dstats b{font-family:var(--num);font-size:24px;font-variant-numeric:tabular-nums}
+canvas#chart{width:100%;height:190px;display:block;background:var(--surface2);border-radius:8px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+label.f input,textarea{height:40px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:0 10px;font-size:15px;text-transform:none;letter-spacing:0;color:var(--fg)}
+textarea{height:170px;width:100%;padding:8px 10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.dfoot{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;align-items:center}
+.small{font-size:13px;color:var(--muted)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+details.logs{margin-top:28px}
+details.logs summary{cursor:pointer;color:var(--muted);font-size:13px}
+#log{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);max-height:260px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0 0}
+
+@media (max-width:620px){
+  .top .wrap{gap:8px;flex-wrap:nowrap}
+  .brand{font-size:19px;gap:6px}
+  .clock b{font-size:22px}
+  .clock span{font-size:10px}
+  .tools .wrap{gap:6px}
+  .tools .spacer{display:none}
+  .btn{height:34px;padding:0 9px;font-size:13px}
+  .seg button{height:32px;padding:0 9px;font-size:13px}
+  select.sel{height:34px;font-size:13px}
+  .team .wrap{gap:6px;flex-wrap:wrap}
+  .tavg{padding:4px 8px}.tavg b{font-size:20px}.tavg span{font-size:10px}
+  .zc{min-width:40px;padding:3px 6px}.zc b{font-size:18px}
+  .cbtn{height:40px;padding:0 10px;min-width:40px}
+  .cbtn.play{min-width:70px}
+  .cbtn .lbl{display:none}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .tile{min-height:132px;padding:8px 10px 10px}
+  .tile .tp{font-size:50px}
+  .row{grid-template-columns:minmax(70px,110px) minmax(0,1fr) 48px 46px;gap:8px;padding:8px}
+  .row .rv{font-size:20px}.row .rb{font-size:15px}
+}
+</style>
+
+<header class="top"><div class="wrap">
+  <div class="brand"><i aria-hidden="true"></i>TrakFC</div>
+  <div class="ctl">
+    <button class="cbtn play" id="btnPlay" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2l10 6-10 6z"/></svg><span id="playLbl">Iniciar</span></button>
+    <button class="cbtn" id="btnBlock" type="button" disabled title="Cerrar el bloque actual y empezar otro">+ <span class="lbl">Bloque</span></button>
+    <button class="cbtn stop" id="btnStop" type="button" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1"/></svg><span class="lbl" id="stopLbl">Finalizar</span></button>
+  </div>
+  <div class="clock"><b id="clock">0:00:00</b><span id="clockLbl">Sin sesión</span></div>
+</div></header>
+
+<section class="tools"><div class="wrap">
+  <button class="btn pri" id="btnAdd" type="button">+ Banda Bluetooth</button>
+  <button class="btn" id="btnAnt" type="button" hidden>+ Antena ANT+</button>
+  <button class="btn" id="btnSaved" type="button" hidden>Conectar guardadas</button>
+  <div class="seg" role="group" aria-label="Vista">
+    <button type="button" data-view="tiles" aria-pressed="true">Cuadros</button>
+    <button type="button" data-view="list" aria-pressed="false">Lista</button>
+    <button type="button" data-view="sum" aria-pressed="false">Resumen</button>
+  </div>
+  <select class="sel" id="selSort" aria-label="Orden">
+    <option value="name">Orden: nombre</option>
+    <option value="pct">Orden: % FC máx</option>
+    <option value="red">Orden: tiempo en Z5</option>
+    <option value="load">Orden: carga</option>
+  </select>
+  <span class="spacer"></span>
+  <button class="btn" id="btnCsv" type="button">Exportar CSV</button>
+  <button class="btn" id="btnCfg" type="button">Ajustes</button>
+  <button class="btn" id="btnDemo" type="button">Demo</button>
+</div></section>
+
+<section class="team" id="team"><div class="wrap">
+  <div class="tavg"><b id="avgPct">–</b><span>% medio equipo</span></div>
+  <div class="zchips" id="zchips"></div>
+  <span class="example" id="exampleTag" hidden>Datos de ejemplo</span>
+  <span class="note" id="teamNote"></span>
+</div></section>
+
+<main class="wrap">
+  <div id="empty" class="empty">
+    <h2>Conectá las bandas del equipo</h2>
+    <p>Cada jugador aparece en un cuadro que cambia de color según su zona de frecuencia cardíaca.</p>
+    <ol>
+      <li>Poné las bandas en el pecho con el sensor húmedo para que se enciendan.</li>
+      <li>Tocá <b>+ Banda Bluetooth</b> y elegí cada banda (en iPad, con Bluefy). En la notebook también podés enchufar la antena USB y tocar <b>+ Antena ANT+</b>: toma todas las bandas ANT+ a la vez.</li>
+      <li>Tocá un cuadro para ponerle el nombre del jugador y su FC máxima.</li>
+      <li>Usá <b>Iniciar</b> para registrar la sesión. Al finalizar vas a ver el resumen por zonas.</li>
+    </ol>
+    <div class="acts">
+      <button class="btn pri" type="button" data-act="add">+ Banda Bluetooth</button>
+      <button class="btn" type="button" data-act="demo">Ver con 17 jugadores de ejemplo</button>
+    </div>
+    <div class="warnbox" id="noBle" hidden>Este navegador no tiene Bluetooth web. En iPhone/iPad abrí la app en <b>Bluefy</b>; en la notebook o Android usá <b>Chrome</b>.</div>
+  </div>
+  <div id="tiles" class="grid" hidden></div>
+  <div id="list" class="list" hidden></div>
+  <div id="sum" hidden>
+    <div class="sumhead">
+      <h2 id="sumTitle">Resumen</h2>
+      <select class="sel" id="selScope" aria-label="Período"><option value="sess">Sesión completa</option><option value="block">Bloque actual</option></select>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>Jugador</th><th>Tiempo</th><th>FC media</th><th>FC máx</th><th>% máx</th><th>Tiempo por zona</th><th>Z4</th><th>Z5</th><th title="Carga de entrenamiento (TRIMP de Edwards)">Carga</th></tr></thead>
+      <tbody id="sumBody"></tbody>
+    </table></div>
+    <div id="blocksWrap" hidden>
+      <h3 class="sub">Bloques cerrados</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>FC media</th><th>FC máx</th><th>Z4</th><th>Z5</th><th>Carga</th></tr></thead>
+        <tbody id="blkBody"></tbody>
+      </table></div>
+    </div>
+  </div>
+  <details class="logs"><summary>Registro técnico</summary><pre id="log"></pre></details>
+</main>
+
+<div class="ov" id="ovD" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <div class="dhead">
+      <div class="dbig z0" id="dBig"><b id="dPct">–</b><span id="dBpm">– lpm</span></div>
+      <div style="min-width:0"><h2 id="dTitle">Jugador</h2><div class="small" id="dDev"></div></div>
+    </div>
+    <canvas id="chart" width="700" height="190" aria-label="Curva de frecuencia cardíaca de la sesión"></canvas>
+    <div class="dstats" id="dStats"></div>
+    <div class="form">
+      <label class="f">Nombre del jugador<input id="dName" type="text" autocomplete="off"></label>
+      <label class="f">FC máxima (lpm)<input id="dMax" type="number" inputmode="numeric" min="120" max="240" placeholder="usa la general"></label>
+    </div>
+    <div class="dfoot">
+      <button class="btn danger" id="dRemove" type="button">Quitar banda</button>
+      <span class="spacer"></span>
+      <button class="btn pri" id="dClose" type="button">Listo</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ovC" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="cTitle">
+    <h2 id="cTitle">Ajustes</h2>
+    <div class="form">
+      <label class="f">FC máxima general (lpm)<input id="cMax" type="number" inputmode="numeric" min="120" max="240"></label>
+      <label class="f">Sin señal después de (s)<input id="cStale" type="number" inputmode="numeric" min="4" max="60"></label>
+    </div>
+    <p class="small">Zonas por % de FC máxima: Z1 50–60 · Z2 60–70 · Z3 70–80 · Z4 80–90 · Z5 90–100. La carga es el TRIMP de Edwards: minutos en cada zona multiplicados por 1 a 5.</p>
+    <h3 class="sub">Nombres de los jugadores</h3>
+    <p class="small" id="nSrc"></p>
+    <textarea id="nText" spellcheck="false" aria-label="Nombres en formato JSON"></textarea>
+    <div class="dfoot">
+      <button class="btn" id="nCopy" type="button">Copiar</button>
+      <button class="btn" id="nApply" type="button">Aplicar nombres</button>
+      <span class="small" id="nMsg"></span>
+      <span class="spacer"></span>
+      <button class="btn" id="cCancel" type="button">Cancelar</button>
+      <button class="btn pri" id="cSave" type="button">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+function log(...a){const el=$('#log'); el.textContent=(new Date().toLocaleTimeString()+'  '+a.join(' ')+'\n'+el.textContent).slice(0,30000);}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(v,d=0)=>v==null||!isFinite(v)?'–':v.toLocaleString('es-AR',{maximumFractionDigits:d,minimumFractionDigits:d});
+const mmss=s=>!isFinite(s)||s<=0?'0:00':Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+const hms=s=>{s=Math.max(0,Math.floor(s)); return Math.floor(s/3600)+':'+String(Math.floor(s/60)%60).padStart(2,'0')+':'+String(s%60).padStart(2,'0');};
+
+/* ---------- Configuración (nombres y FC máx compartidos con TrakLive si están en el mismo sitio) ---------- */
+const tl=store.get('traklive.cfg',{});
+const cfg=Object.assign({hrmax:tl.hrmax||195,stale:10},store.get('trakfc.cfg',{}));
+const pcfg=store.get('traklive.player',{});   // por nombre de jugador: {hrmax}
+const names=store.get('traklive.names',{});   // por banda: "FC:<nombre bluetooth>" o "FC:ANT <número>"
+let view=store.get('trakfc.view','tiles'), sortMode=store.get('trakfc.sort','name'), scope='sess';
+const hrmaxOf=l=>(pcfg[l]&&+pcfg[l].hrmax)||cfg.hrmax;
+const zoneOf=pct=>pct==null?-1:pct<0.5?0:pct<0.6?1:pct<0.7?2:pct<0.8?3:pct<0.9?4:5;
+const ZN=['<50%','Z1','Z2','Z3','Z4','Z5'];
+let rosterInfo='No se encontró jugadores.json; los nombres quedan guardados solo en este dispositivo.';
+async function loadRoster(){
+  for(const url of ['jugadores.json','../jugadores.json']){
+    try{ const r=await fetch(url,{cache:'no-store'}); if(!r.ok)continue; const j=await r.json(); let n=0;
+      for(const [k,v] of Object.entries(j)) if(typeof v==='string'&&v.trim()){ names[k]=v.trim(); n++; }
+      store.set('traklive.names',names); rosterInfo='Se cargaron '+n+' nombres desde '+url+'.'; render(); return; }catch(e){}
+  } }
+
+/* ---------- Sesión ---------- */
+const sess={state:'idle',accum:0,since:0,block:1,blockStart:0};
+const elapsed=()=>(sess.accum+(sess.state==='running'?(Date.now()-sess.since):0))/1000;
+const bands=new Map(); let order=0; let history=[]; let closedBlocks=[]; let openKey=null; let demoMode=false;
+const accZero=()=>({t:0,sum:0,max:0,z:[0,0,0,0,0,0],trimp:0});
+
+function initBand(b){ b.order=order++; b.hr=null; b.lastOk=0; b.lastT=0; b.acc=accZero(); b.bacc=accZero(); b.samples=[]; b.lastS=-99; b.removed=false; b.battery=b.battery??null; b.status=b.status||'Conectando'; }
+function label(b){ return names[b.bandKey()]||b.defLabel(); }
+function feedHr(b,hr){
+  const now=Date.now(); if(!(hr>=25&&hr<=240))return;
+  if(sess.state==='running'){
+    if(b.lastT&&b.hr!=null){ const dt=Math.min(5,(now-b.lastT)/1000), z=zoneOf(b.hr/hrmaxOf(label(b)));
+      for(const a of [b.acc,b.bacc]){ a.t+=dt; a.sum+=b.hr*dt; a.z[z]+=dt; a.trimp+=dt/60*Math.max(0,z); } }
+    b.acc.max=Math.max(b.acc.max,hr); b.bacc.max=Math.max(b.bacc.max,hr);
+    const e=elapsed(); if(e-b.lastS>=5){ b.lastS=e; b.samples.push([e,hr]);
+      history.push({hora:new Date(now).toLocaleTimeString('es-AR'),tiempo:hms(e),jugador:label(b),banda:b.bandKey().slice(3),bloque:sess.block,fc:hr,pct_fcmax:Math.round(hr/hrmaxOf(label(b))*100)}); }
+  }
+  b.hr=hr; b.lastT=now; b.lastOk=now; scheduleRender();
+}
+function stats(a,l){ const avg=a.t>0?a.sum/a.t:null; return {t:a.t,avg,max:a.max||null,pmax:a.max?a.max/hrmaxOf(l):null,z:a.z,trimp:a.trimp}; }
+
+function setPlay(){ const st=sess.state;
+  $('#playLbl').textContent=st==='running'?'Pausa':st==='paused'?'Seguir':'Iniciar';
+  $('#btnPlay').querySelector('path').setAttribute('d',st==='running'?'M4 2h3v12H4zM9 2h3v12H9z':'M4 2l10 6-10 6z');
+  $('#btnStop').disabled=!(st==='running'||st==='paused'); $('#btnBlock').disabled=st!=='running';
+  tickClock(); }
+function playPause(){
+  const now=Date.now();
+  if(sess.state==='idle'||sess.state==='done'){
+    sess.accum=0; sess.since=now; sess.block=1; sess.blockStart=0; sess.state='running'; history=[]; closedBlocks=[];
+    for(const b of bands.values()){ b.acc=accZero(); b.bacc=accZero(); b.samples=[]; b.lastS=-99; b.lastT=0; }
+    log('Sesión iniciada'); if(view==='sum')setView('tiles');
+  } else if(sess.state==='running'){ sess.accum+=now-sess.since; sess.state='paused'; log('Sesión en pausa'); }
+  else { sess.since=now; sess.state='running'; for(const b of bands.values()) b.lastT=0; log('Sesión reanudada'); }
+  keepAwake(); setPlay(); render(); }
+function closeBlock(){
+  const dur=elapsed()-sess.blockStart; if(dur<1)return;
+  for(const b of bands.values()){ if(b.bacc.t<=0)continue; const s=stats(b.bacc,label(b));
+    closedBlocks.push({jugador:label(b),bloque:sess.block,duracion:dur,avg:s.avg,max:s.max,z4:s.z[4],z5:s.z[5],trimp:s.trimp}); }
+}
+function newBlock(){ if(sess.state!=='running')return; closeBlock(); sess.block++; sess.blockStart=elapsed(); for(const b of bands.values()) b.bacc=accZero(); log('Bloque',sess.block,'iniciado'); render(); }
+let stopArm=null;
+function stopSession(){
+  const btn=$('#btnStop');
+  if(!stopArm){ btn.classList.add('arm'); $('#stopLbl').textContent='¿Finalizar?'; btn.querySelector('.lbl').style.display='inline'; stopArm=setTimeout(()=>{stopArm=null;btn.classList.remove('arm');$('#stopLbl').textContent='Finalizar';btn.querySelector('.lbl').style.display='';},3500); return; }
+  clearTimeout(stopArm); stopArm=null; btn.classList.remove('arm'); $('#stopLbl').textContent='Finalizar'; btn.querySelector('.lbl').style.display='';
+  if(sess.state==='running') sess.accum+=Date.now()-sess.since;
+  closeBlock(); sess.state='done'; log('Sesión finalizada:',hms(elapsed())); setPlay(); setView('sum'); }
+
+/* ---------- Banda Bluetooth (servicio estándar 0x180D) ---------- */
+class Band{
+  constructor(device){this.device=device;this.key='band:'+device.id;this.kind='Bluetooth';this.retry=0;initBand(this);
+    device.addEventListener('gattserverdisconnected',()=>this.onDisc());}
+  bandKey(){return 'FC:'+(this.device.name||this.device.id)}
+  defLabel(){return this.device.name||'Banda'}
+  async connect(){
+    this.status=this.lastOk?'Reconectando':'Conectando'; render();
+    const to=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('tiempo de espera agotado')),ms))]);
+    const server=await to(this.device.gatt.connect(),12000);
+    const svc=await to(server.getPrimaryService('heart_rate'),8000);
+    if(this.ch&&this.handler)this.ch.removeEventListener('characteristicvaluechanged',this.handler);
+    this.ch=await svc.getCharacteristic('heart_rate_measurement');
+    this.handler=this.handler||(e=>this.onHr(e.target.value));
+    this.ch.addEventListener('characteristicvaluechanged',this.handler);
+    await to(this.ch.startNotifications(),8000);
+    try{ const bs=await server.getPrimaryService('battery_service'); const bl=await (await bs.getCharacteristic('battery_level')).readValue(); this.battery=bl.getUint8(0); }catch(e){}
+    this.status='Conectado'; this.retry=0; this.reconnecting=false; log(label(this),'conectada'+(this.battery!=null?' (batería '+this.battery+'%)':'')); render();
+  }
+  onHr(v){ const flags=v.getUint8(0); const hr=(flags&1)?v.getUint16(1,true):v.getUint8(1); feedHr(this,hr); }
+  onDisc(){ if(this.removed||this.reconnecting)return; this.reconnecting=true; this.status='Reconectando'; log(label(this),'se desconectó, reintentando'); render();
+    const attempt=()=>{ if(this.removed)return; try{this.device.gatt.disconnect()}catch(e){}
+      this.connect().catch(e=>{ log(label(this),'reconexión falló:',e.message); const w=Math.min(1000*2**this.retry,8000); this.retry++; setTimeout(attempt,w); }); };
+    setTimeout(attempt,800); }
+  remove(){this.removed=true;try{this.device.gatt.disconnect()}catch(e){}}
+}
+async function addBandDev(dev){
+  if(bands.has('band:'+dev.id)){log('Esa banda ya está en la pantalla');return}
+  const b=new Band(dev); bands.set(b.key,b); render(); keepAwake();
+  try{ await b.connect(); }catch(e){ log((dev.name||'Banda'),'no se pudo conectar:',e.message); b.remove(); bands.delete(b.key); render(); } }
+async function addBand(){
+  if(!navigator.bluetooth){$('#noBle').hidden=false;log('Este navegador no tiene Bluetooth web');return}
+  try{ const dev=await navigator.bluetooth.requestDevice({filters:[{services:['heart_rate']}],optionalServices:['battery_service']}); log('Banda elegida:',dev.name||'(sin nombre)'); await addBandDev(dev); refreshSaved(); }
+  catch(e){ log('No se agregó la banda:',(e&&e.name)||'',(e&&e.message)||e); if(e&&e.name==='SecurityError'){$('#noBle').hidden=false;} } }
+async function savedDevices(){ try{ if(navigator.bluetooth&&navigator.bluetooth.getDevices) return await navigator.bluetooth.getDevices(); }catch(e){} return null; }
+async function refreshSaved(){ const devs=await savedDevices(); const btn=$('#btnSaved'); if(!devs||!devs.length){btn.hidden=true;return}
+  const pend=devs.filter(d=>!bands.has('band:'+d.id)).length; btn.hidden=false; btn.disabled=pend===0; btn.textContent=pend?'Conectar guardadas ('+pend+')':'Guardadas conectadas'; }
+async function connectSaved(){ const devs=await savedDevices(); if(!devs||!devs.length)return; const btn=$('#btnSaved'); btn.disabled=true; btn.textContent='Conectando…'; keepAwake();
+  const todo=devs.filter(d=>!bands.has('band:'+d.id));
+  await Promise.all(todo.map((dev,i)=>new Promise(res=>setTimeout(async()=>{ try{ await addBandDev(dev); }catch(e){} res(); },i*400))));
+  refreshSaved(); render(); }
+
+/* ---------- Bandas ANT+ con antena USB (Garmin / Dynastream) ---------- */
+class AntBand{
+  constructor(num){this.num=num;this.key='ant:'+num;this.kind='ANT+';this.status='Conectado';initBand(this);}
+  bandKey(){return 'FC:ANT '+this.num}
+  defLabel(){return 'Banda ANT+ '+this.num}
+  remove(){this.removed=true; antIgnore.add(this.num);}
+}
+const antIgnore=new Set();
+const ANT_KEY=[0xB9,0xA5,0x21,0xFB,0xBD,0x72,0xC3,0x45];
+class AntStick{
+  async open(){
+    this.dev=await navigator.usb.requestDevice({filters:[{vendorId:0x0fcf}]});
+    await this.dev.open(); if(!this.dev.configuration) await this.dev.selectConfiguration(1);
+    const itf=this.dev.configuration.interfaces[0]; await this.dev.claimInterface(itf.interfaceNumber);
+    const eps=itf.alternate.endpoints; this.epIn=eps.find(e=>e.direction==='in').endpointNumber; this.epOut=eps.find(e=>e.direction==='out').endpointNumber;
+    this.open_=true; this.rx=[]; this.msgs=0; this.seen=new Map(); this.readLoop();
+    log('Antena abierta:',this.dev.productName||'ANT+');
+    await this.startScan();
+    this.watch=setTimeout(()=>{ if(this.open_&&this.msgs===0){ log('ANT+: sin señales en modo escaneo; paso a escuchar banda por banda'); this.startChannels(); } },12000);
+    this.diag=setInterval(()=>{ if(this.open_) log('ANT+: señales',this.msgs,'· vistos:',[...this.seen.entries()].map(([k,v])=>k+' (tipo '+v+')').join(', ')||'ninguno'); },15000);
+  }
+  async startScan(){ const w=ms=>new Promise(r=>setTimeout(r,ms)); this.mode='scan';
+    await this.send(0x4A,[0]); await w(700); await this.send(0x4D,[0,0x54]); await w(120);
+    await this.send(0x46,[0,...ANT_KEY]); await w(100); await this.send(0x42,[0,0,0]); await w(100);
+    await this.send(0x51,[0,0,0,0,0]); await w(100); await this.send(0x45,[0,57]); await w(100);
+    await this.send(0x66,[0,1]); await w(100); await this.send(0x5B,[0]); await w(100);
+    log('ANT+: escuchando todas las bandas a la vez'); }
+  async startChannels(){ const w=ms=>new Promise(r=>setTimeout(r,ms)); this.mode='channels'; const n=Math.max(1,Math.min(8,this.maxCh||8));
+    await this.send(0x4A,[0]); await w(700); await this.send(0x46,[0,...ANT_KEY]); await w(100); await this.send(0x66,[0,1]); await w(100);
+    this.chFree=[]; for(let c=0;c<n;c++)this.chFree.push(c); this.openNextChannel(); }
+  async openNextChannel(){
+    if(!this.chFree||!this.chFree.length){ log('ANT+: no quedan canales libres'); return; }
+    const c=this.chFree.shift(), w=ms=>new Promise(r=>setTimeout(r,ms)); this.searching=c;
+    await this.send(0x42,[c,0,0]); await w(80); await this.send(0x51,[c,0,0,120,0]); await w(80);
+    await this.send(0x43,[c,0x86,0x1F]); await w(80); await this.send(0x45,[c,57]); await w(80); await this.send(0x44,[c,0xFF]); await w(80);
+    if(this.paired&&this.paired.size){ let i=0; for(const num of [...this.paired].slice(-4)){ await this.send(0x59,[c,num&255,num>>8,120,0,i++]); await w(60); } await this.send(0x5A,[c,i,1]); await w(60); }
+    await this.send(0x4B,[c]); log('ANT+: canal',c,'buscando banda…'); }
+  async send(id,data){ const b=[0xA4,data.length,id,...data]; let cs=0; for(const x of b)cs^=x; b.push(cs); await this.dev.transferOut(this.epOut,new Uint8Array(b)); }
+  async readLoop(){ while(this.open_){ try{ const r=await this.dev.transferIn(this.epIn,64); if(r.data){ for(let i=0;i<r.data.byteLength;i++)this.rx.push(r.data.getUint8(i)); this.parse(); } }
+    catch(e){ if(this.open_){ log('Antena ANT+ desconectada:',e.message); this.open_=false; updateAntButton(); } } } }
+  parse(){ const q=this.rx;
+    while(q.length>=4){
+      if(q[0]!==0xA4){ q.shift(); continue; }
+      const len=q[1]; if(q.length<len+4)break;
+      const msg=q.splice(0,len+4), id=msg[2], d=msg.slice(3,3+len);
+      if(id===0x4E||id===0x4F||id===0x50){ this.msgs++;
+        if(d.length>=13&&(d[9]&0x80)){ const num=d[10]|(d[11]<<8), type=d[12]&0x7F;
+          if(!this.seen.has(num)){ this.seen.set(num,type); log('ANT+: dispositivo',num,'tipo',type,type===120?'(banda de FC)':'(no es banda)'); }
+          if(type===120){
+            if(this.mode==='channels'){ this.paired=this.paired||new Set(); if(!this.paired.has(num)){ this.paired.add(num); if(this.searching===d[0]){ this.searching=null; this.openNextChannel(); } } }
+            if(!antIgnore.has(num)) antHr(num,d[8]); }
+        } else if(!this.warnNoExt){ this.warnNoExt=true; log('ANT+: llegan señales sin número de dispositivo'); }
+      } else if(id===0x40){ const [,mid,code]=d; if(mid!==1&&code!==0) log('ANT+: la antena rechazó la orden 0x'+mid.toString(16)+' (código '+code+')'); }
+      else if(id===0x54){ this.maxCh=d[0]; log('ANT+: la antena tiene',d[0],'canales'); }
+    } }
+  async close(){ this.open_=false; clearTimeout(this.watch); clearInterval(this.diag); try{ await this.dev.close(); }catch(e){} }
+}
+let antStick=null;
+function antHr(num,hr){ let b=bands.get('ant:'+num); if(!b){ b=new AntBand(num); bands.set(b.key,b); log('Banda ANT+ detectada:',num); } feedHr(b,hr); }
+function updateAntButton(){ const btn=$('#btnAnt'); if(!navigator.usb){btn.hidden=true;return} btn.hidden=false; const on=!!(antStick&&antStick.open_); btn.textContent=on?'Antena ANT+ activa':'+ Antena ANT+'; btn.disabled=on; }
+async function openAnt(){
+  try{ antStick=new AntStick(); await antStick.open(); keepAwake(); }
+  catch(e){ log('No se pudo abrir la antena ANT+:',(e&&e.name)||'',(e&&e.message)||e); if(e&&/access|claim|Security/i.test(String(e.message)+e.name)) log('En Windows la antena necesita el controlador WinUSB (Zadig). Cerrá otros programas que la usen.'); antStick=null; }
+  updateAntButton(); }
+
+/* ---------- Demo ---------- */
+const POS=['Pilar izq.','Hooker','Pilar der.','2ª línea','2ª línea','Ala','Ala','Octavo','Medio scrum','Apertura','Wing','Centro','Centro','Wing','Fullback','Suplente','Suplente'];
+class FakeBand{
+  constructor(i){this.i=i;this.key='demo'+i;this.kind='Demo';this.status='Conectado';this.battery=60+((i*7)%40);initBand(this);this.cur=80+Math.random()*15;this.ph=Math.random()*6;this.fit=0.9+(i%5)*0.04;this.timer=null;}
+  bandKey(){return 'FC:DEMO '+(this.i+1)}
+  defLabel(){return (this.i+1)+' · '+POS[this.i]}
+  connect(){ const tick=()=>{ if(this.removed)return; const t=Date.now()/1000;
+      const work=this.i>=15?0.15:0.55+0.35*Math.sin(t/40+this.ph)+(Math.random()<.04?0.5:0);
+      const tgt=(78+work*110)*this.fit; this.cur+=(tgt-this.cur)*0.18+(Math.random()-.5)*2.5;
+      if(!(this.i===6&&Math.floor(t/25)%4===3)) feedHr(this,Math.round(Math.max(55,Math.min(204,this.cur))));
+      this.timer=setTimeout(tick,1000); };
+    setTimeout(tick,200+this.i*50); }
+  remove(){this.removed=true;clearTimeout(this.timer)}
+}
+function demo(){
+  if(demoMode){ for(const [k,b] of bands) if(k.startsWith('demo')){ b.remove(); bands.delete(k); } demoMode=false; $('#btnDemo').textContent='Demo'; render(); return; }
+  demoMode=true; $('#btnDemo').textContent='Quitar demo';
+  for(let i=0;i<17;i++){ const b=new FakeBand(i); bands.set(b.key,b); b.connect(); }
+  render(); }
+
+/* ---------- Pantalla ---------- */
+let rq=0; function scheduleRender(){ if(rq)return; rq=setTimeout(()=>{rq=0;render()},350); }
+const heart='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.5 1.8 8.6A3.9 3.9 0 0 1 8 3.6a3.9 3.9 0 0 1 6.2 5z"/></svg>';
+function live(b){ return b.hr!=null&&Date.now()-b.lastOk<cfg.stale*1000&&b.status!=='Reconectando'; }
+function rowsData(){
+  const arr=[...bands.values()].filter(b=>!b.removed).map(b=>{ const l=label(b), mx=hrmaxOf(l), on=live(b), pct=on?b.hr/mx:null;
+    const a=scope==='block'&&view==='sum'?b.bacc:b.acc; return {b,l,mx,on,pct,z:zoneOf(pct),s:stats(a,l)}; });
+  const nat=(x,y)=>x.l.localeCompare(y.l,'es',{numeric:true,sensitivity:'base'});
+  arr.sort(sortMode==='pct'?(x,y)=>(y.pct??-1)-(x.pct??-1)||nat(x,y):sortMode==='red'?(x,y)=>y.s.z[5]-x.s.z[5]||nat(x,y):sortMode==='load'?(x,y)=>y.s.trimp-x.s.trimp||nat(x,y):nat);
+  return arr; }
+function zbar(z,cls){ const tot=z.slice(1).reduce((a,b)=>a+b,0); if(!tot) return '<div class="zbar '+(cls||'')+'"></div>';
+  return '<div class="zbar '+(cls||'')+'">'+[1,2,3,4,5].map(k=>z[k]>0?'<i class="b'+k+'" style="width:'+(z[k]/tot*100).toFixed(1)+'%"></i>':'').join('')+'</div>'; }
+function stateText(b){ if(b.status==='Conectando')return 'conectando…'; if(b.status==='Reconectando')return 'reconectando…'; return 'sin señal'; }
+function render(){
+  const rows=rowsData(), has=rows.length>0;
+  $('#empty').hidden=has; $('#team').hidden=!has;
+  $('#tiles').hidden=!has||view!=='tiles'; $('#list').hidden=!has||view!=='list'; $('#sum').hidden=!has||view!=='sum';
+  document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.view===view)));
+  $('#exampleTag').hidden=!demoMode;
+  // resumen del equipo
+  const onr=rows.filter(r=>r.on); const cnt=[0,0,0,0,0,0]; onr.forEach(r=>cnt[r.z]++);
+  $('#avgPct').textContent=onr.length?Math.round(onr.reduce((a,r)=>a+r.pct,0)/onr.length*100)+'%':'–';
+  $('#zchips').innerHTML=[5,4,3,2,1].map(k=>'<div class="zc z'+k+'"><b>'+cnt[k]+'</b><span>'+ZN[k]+'</span></div>').join('');
+  $('#teamNote').textContent=onr.length+' de '+rows.length+' bandas con señal'+(sess.state!=='idle'?' · bloque '+sess.block:'');
+  if(!has){ return; }
+  if(view==='tiles'){
+    $('#tiles').innerHTML=rows.map(r=>{ const b=r.b, rec=sess.state!=='idle';
+      return '<button type="button" class="tile z'+(r.on?r.z:0)+(r.on?'':' stale')+'" data-k="'+esc(b.key)+'">'+
+        '<div class="tn"><b>'+esc(r.l)+'</b>'+(r.on?'<span class="tz">'+ZN[r.z]+'</span>':'')+'</div>'+
+        (r.on?'<div class="tp">'+Math.round(r.pct*100)+'<small>%</small></div><div class="tb">'+heart+b.hr+' <small>LPM</small></div>'
+             :'<div class="tp">'+stateText(b)+'</div><div class="tb"><small>'+(b.hr!=null?'último '+b.hr+' lpm':esc(b.kind))+'</small></div>')+
+        (rec?'<div class="tf"><span>máx '+(r.s.max||'–')+'</span><span>Z5 '+mmss(r.s.z[5])+'</span></div>'+zbar(r.s.z):
+             '<div class="tf"><span>FC máx '+r.mx+'</span><span>'+(b.battery!=null?'bat. '+b.battery+'%':esc(b.kind))+'</span></div>')+
+        '</button>'; }).join('');
+  } else if(view==='list'){
+    $('#list').innerHTML=rows.map(r=>{ const w=r.on?Math.max(0,Math.min(1,(r.pct-0.4)/0.6)):0;
+      return '<button type="button" class="row'+(r.on?'':' stale')+'" data-k="'+esc(r.b.key)+'"><span class="rn">'+esc(r.l)+'</span>'+
+        '<span class="rbar"><i class="z'+(r.on?r.z:0)+'" style="width:'+(w*100).toFixed(1)+'%"></i>'+[0.6,0.7,0.8,0.9].map(p=>'<span class="m50" style="left:'+((p-0.4)/0.6*100).toFixed(1)+'%"></span>').join('')+'</span>'+
+        '<span class="rv">'+(r.on?Math.round(r.pct*100)+'%':'–')+'</span><span class="rb">'+(r.on?r.b.hr:'–')+'</span></button>'; }).join('');
+  } else renderSum(rows);
+  if(openKey) fillDetail();
+}
+function renderSum(rows){
+  $('#sumTitle').textContent=sess.state==='done'?'Resumen de la sesión ('+hms(elapsed())+')':sess.state==='idle'?'Resumen (todavía no se inició una sesión)':'Resumen en curso';
+  $('#sumBody').innerHTML=rows.map(r=>{ const s=r.s;
+    return '<tr data-k="'+esc(r.b.key)+'"><td>'+esc(r.l)+'</td><td>'+mmss(s.t)+'</td><td class="num">'+fmt(s.avg)+'</td><td class="num">'+fmt(s.max)+'</td><td>'+(s.pmax?Math.round(s.pmax*100)+'%':'–')+'</td>'+
+      '<td class="zcol">'+zbar(s.z)+'<div class="zl">'+[1,2,3,4,5].map(k=>'<span>'+mmss(s.z[k])+'</span>').join('')+'</div></td>'+
+      '<td>'+mmss(s.z[4])+'</td><td>'+mmss(s.z[5])+'</td><td class="num">'+fmt(s.trimp)+'</td></tr>'; }).join('');
+  $('#blocksWrap').hidden=!closedBlocks.length;
+  $('#blkBody').innerHTML=closedBlocks.map(c=>'<tr><td>'+esc(c.jugador)+'</td><td>'+c.bloque+'</td><td>'+mmss(c.duracion)+'</td><td class="num">'+fmt(c.avg)+'</td><td class="num">'+fmt(c.max)+'</td><td>'+mmss(c.z4)+'</td><td>'+mmss(c.z5)+'</td><td class="num">'+fmt(c.trimp)+'</td></tr>').join('');
+}
+function setView(v){ view=v; store.set('trakfc.view',v); render(); }
+function tickClock(){ const e=elapsed(); $('#clock').textContent=hms(e);
+  $('#clockLbl').textContent=sess.state==='running'?'Bloque '+sess.block+' · '+mmss(e-sess.blockStart):sess.state==='paused'?'En pausa':sess.state==='done'?'Sesión finalizada':'Sin sesión'; }
+setInterval(()=>{ tickClock(); },500);
+setInterval(()=>{ render(); },2000); // refresca estados "sin señal"
+
+/* ---------- Detalle del jugador ---------- */
+function openDetail(k){ openKey=k; const b=bands.get(k); if(!b)return; $('#dName').value=label(b); const p=pcfg[label(b)]; $('#dMax').value=p&&p.hrmax?p.hrmax:''; $('#dMax').placeholder='general: '+cfg.hrmax; $('#ovD').hidden=false; fillDetail(); }
+function closeDetail(){ openKey=null; $('#ovD').hidden=true; }
+function fillDetail(){ const b=bands.get(openKey); if(!b){closeDetail();return}
+  const l=label(b), mx=hrmaxOf(l), on=live(b), pct=on?b.hr/mx:null, z=zoneOf(pct), s=stats(b.acc,l);
+  $('#dTitle').textContent=l; $('#dBig').className='dbig z'+(on?z:0); $('#dPct').textContent=on?Math.round(pct*100)+'%':'–'; $('#dBpm').textContent=(on?b.hr:'–')+' lpm';
+  $('#dDev').textContent=b.kind+' · '+b.bandKey().slice(3)+(b.battery!=null?' · batería '+b.battery+'%':'')+' · '+(on?'con señal':stateText(b));
+  $('#dStats').innerHTML=[['FC media',fmt(s.avg)],['FC máx alcanzada',fmt(s.max)+(s.pmax?' <small>('+Math.round(s.pmax*100)+'%)</small>':'')],['Tiempo registrado',mmss(s.t)],['Z4',mmss(s.z[4])],['Z5',mmss(s.z[5])],['Carga',fmt(s.trimp)]]
+    .map(([k,v])=>'<div><span>'+k+'</span><b>'+v+'</b></div>').join('');
+  drawChart(b,mx); }
+function drawChart(b,mx){
+  const c=$('#chart'), dpr=window.devicePixelRatio||1, W=c.clientWidth||600, H=c.clientHeight||190;
+  if(c.width!==Math.round(W*dpr)){ c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); }
+  const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const cs=getComputedStyle(document.documentElement), col=n=>cs.getPropertyValue(n).trim();
+  const L=34,R=8,T=8,B=20, lo=Math.round(mx*0.4), hi=mx;
+  const y=v=>T+(H-T-B)*(1-(Math.min(hi,Math.max(lo,v))-lo)/(hi-lo));
+  [[0.5,0.6,'--z1'],[0.6,0.7,'--z2'],[0.7,0.8,'--z3'],[0.8,0.9,'--z4'],[0.9,1,'--z5']].forEach(([a,bb,n])=>{ g.globalAlpha=0.16; g.fillStyle=col(n); g.fillRect(L,y(mx*bb),W-L-R,y(mx*a)-y(mx*bb)); });
+  g.globalAlpha=1; g.fillStyle=col('--muted'); g.font='11px '+col('--body'); g.textAlign='right'; g.textBaseline='middle';
+  [0.5,0.6,0.7,0.8,0.9].forEach(p=>g.fillText(Math.round(mx*p),L-6,y(mx*p)));
+  const pts=b.samples; const tEnd=Math.max(60,elapsed());
+  g.textAlign='center'; g.textBaseline='alphabetic';
+  const step=tEnd>2400?600:tEnd>600?300:60; for(let t=0;t<=tEnd;t+=step){ g.fillText(Math.round(t/60)+"'",L+(W-L-R)*t/tEnd,H-5); }
+  if(pts.length<2){ g.textAlign='center'; g.fillText(sess.state==='idle'?'La curva aparece cuando iniciás la sesión':'Juntando datos…',W/2,H/2); return; }
+  g.strokeStyle=col('--fg'); g.lineWidth=2; g.lineJoin='round'; g.beginPath();
+  pts.forEach(([t,v],i)=>{ const X=L+(W-L-R)*t/tEnd, Y=y(v); i?g.lineTo(X,Y):g.moveTo(X,Y); }); g.stroke();
+  const [lt,lv]=pts[pts.length-1]; g.fillStyle=col('--fg'); g.beginPath(); g.arc(L+(W-L-R)*lt/tEnd,y(lv),3.5,0,7); g.fill(); }
+
+/* ---------- CSV, ajustes, nombres ---------- */
+function toCsv(rows){ if(!rows.length)return''; const cols=[...new Set(rows.flatMap(r=>Object.keys(r)))]; return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n'); }
+async function exportCsv(){
+  const sum=[...bands.values()].filter(b=>!b.removed&&b.acc.t>0).map(b=>{ const l=label(b), s=stats(b.acc,l);
+    return {jugador:l,banda:b.bandKey().slice(3),fc_max_config:hrmaxOf(l),tiempo:hms(s.t),fc_media:Math.round(s.avg),fc_max:s.max,pct_max:Math.round((s.pmax||0)*100),z1:mmss(s.z[1]),z2:mmss(s.z[2]),z3:mmss(s.z[3]),z4:mmss(s.z[4]),z5:mmss(s.z[5]),carga:Math.round(s.trimp)}; });
+  const blk=closedBlocks.map(c=>({jugador:c.jugador,bloque:c.bloque,duracion:mmss(c.duracion),fc_media:Math.round(c.avg||0),fc_max:c.max,z4:mmss(c.z4),z5:mmss(c.z5),carga:Math.round(c.trimp)}));
+  const csv=[toCsv(sum),toCsv(blk),toCsv(history)].filter(Boolean).join('\n\n');
+  if(!csv){ log('Todavía no hay datos: iniciá una sesión'); return; }
+  const name='trakfc_'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.csv';
+  try{const f=new File([csv],name,{type:'text/csv'}); if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return}}catch(e){}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();}catch(e){}
+  try{await navigator.clipboard.writeText(csv);log('CSV copiado al portapapeles')}catch(e){} }
+function namesJson(){ const o={}; for(const b of bands.values()) if(!b.key.startsWith('demo')&&!names[b.bandKey()]) o[b.bandKey()]=''; Object.assign(o,names); for(const k of Object.keys(o)) if(/DEMO/.test(k))delete o[k]; return JSON.stringify(o,null,2); }
+function openCfg(){ $('#cMax').value=cfg.hrmax; $('#cStale').value=cfg.stale; $('#nText').value=namesJson(); $('#nSrc').textContent=rosterInfo+' Si TrakFC está en el mismo sitio que TrakLive, comparten nombres y FC máxima.'; $('#nMsg').textContent=''; $('#ovC').hidden=false; }
+function saveCfg(){ cfg.hrmax=Math.min(240,Math.max(120,+$('#cMax').value||195)); cfg.stale=Math.min(60,Math.max(4,+$('#cStale').value||10)); store.set('trakfc.cfg',cfg); $('#ovC').hidden=true; render(); }
+let wakeLock=null;
+async function keepAwake(){try{if('wakeLock' in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>wakeLock=null)}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&bands.size)keepAwake()});
+
+/* ---------- Eventos ---------- */
+$('#btnAdd').addEventListener('click',addBand);
+$('#btnAnt').addEventListener('click',openAnt);
+$('#btnSaved').addEventListener('click',connectSaved);
+$('#btnDemo').addEventListener('click',demo);
+$('#btnPlay').addEventListener('click',playPause);
+$('#btnStop').addEventListener('click',stopSession);
+$('#btnBlock').addEventListener('click',newBlock);
+$('#btnCsv').addEventListener('click',exportCsv);
+$('#btnCfg').addEventListener('click',openCfg);
+$('#cCancel').addEventListener('click',()=>{$('#ovC').hidden=true});
+$('#cSave').addEventListener('click',saveCfg);
+$('#empty').addEventListener('click',e=>{ const a=e.target.closest('[data-act]'); if(!a)return; if(a.dataset.act==='add')addBand(); else demo(); });
+document.querySelectorAll('.seg button').forEach(x=>x.addEventListener('click',()=>setView(x.dataset.view)));
+$('#selSort').value=sortMode; $('#selSort').addEventListener('change',e=>{sortMode=e.target.value;store.set('trakfc.sort',sortMode);render();});
+$('#selScope').addEventListener('change',e=>{scope=e.target.value;render();});
+document.querySelector('main').addEventListener('click',e=>{ const t=e.target.closest('[data-k]'); if(t)openDetail(t.dataset.k); });
+$('#dClose').addEventListener('click',closeDetail);
+$('#ovD').addEventListener('click',e=>{if(e.target.id==='ovD')closeDetail()});
+$('#ovC').addEventListener('click',e=>{if(e.target.id==='ovC')$('#ovC').hidden=true});
+$('#dName').addEventListener('change',()=>{ const b=bands.get(openKey); if(!b)return; const old=label(b), v=$('#dName').value.trim();
+  if(v){ names[b.bandKey()]=v; if(pcfg[old]&&!pcfg[v]){ pcfg[v]=pcfg[old]; store.set('traklive.player',pcfg); } } else delete names[b.bandKey()];
+  store.set('traklive.names',names); render(); });
+$('#dMax').addEventListener('change',()=>{ const b=bands.get(openKey); if(!b)return; const l=label(b), v=+$('#dMax').value;
+  pcfg[l]=Object.assign({},pcfg[l],{hrmax:v>=120&&v<=240?v:undefined}); store.set('traklive.player',pcfg); render(); });
+$('#dRemove').addEventListener('click',()=>{ const b=bands.get(openKey); if(b){ b.remove(); bands.delete(b.key); } closeDetail(); render(); refreshSaved(); });
+$('#nCopy').addEventListener('click',async()=>{ const t=$('#nText'); try{ await navigator.clipboard.writeText(t.value); $('#nMsg').textContent='Copiado'; }catch(e){ t.focus(); t.select(); $('#nMsg').textContent='Texto seleccionado: copialo con el menú'; } });
+$('#nApply').addEventListener('click',()=>{ try{ const j=JSON.parse($('#nText').value); for(const [k,v] of Object.entries(j)) if(typeof v==='string'){ if(v.trim())names[k]=v.trim(); else delete names[k]; } store.set('traklive.names',names); $('#nMsg').textContent='Nombres aplicados'; render(); }catch(e){ $('#nMsg').textContent='El texto no tiene el formato correcto'; } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeDetail(); $('#ovC').hidden=true; } });
+if(navigator.usb) navigator.usb.addEventListener('disconnect',e=>{ if(antStick&&e.device===antStick.dev){ antStick.open_=false; log('Se desenchufó la antena ANT+'); updateAntButton(); } });
+if(!navigator.bluetooth) $('#noBle').hidden=false;
+window.__trakfc={feedHr,bands,sess,elapsed};
+setPlay(); render(); refreshSaved(); loadRoster(); updateAntButton();
+// Vista previa dentro de claude.ai (sin Bluetooth): arranca con jugadores de ejemplo
+let framed=false; try{ framed=window.self!==window.top; }catch(e){ framed=true; }
+if(framed&&!bands.size){ demo(); setTimeout(()=>{ if(sess.state==='idle') playPause(); },1500); }
+})();
+</script>
+</body></html>
