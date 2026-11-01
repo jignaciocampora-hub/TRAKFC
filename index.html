@@ -3,890 +3,1391 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="TrakFC">
-<meta name="theme-color" content="#E9EDF1">
 <title>TrakFC</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0E1620">
+<link rel="apple-touch-icon" href="trakfc-icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="trakfc-icon-192.png">
+<link rel="manifest" href="trakfc.webmanifest">
+<meta name="apple-mobile-web-app-title" content="TrakFC">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
+<script async src="jspdf.umd.min.js" onerror="var s=document.createElement('script');s.async=true;s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';document.head.appendChild(s)"></script>
 <style>
+/* Layout: barra fija arriba (reloj + controles de sesión), fila de vista y zonas, grilla de cuadros por jugador que llena la pantalla del iPad. */
 :root{
-  --bg:#E9EDF1; --surface:#FFFFFF; --ink:#18232E; --muted:#5C6B79; --line:#D3DAE1;
-  --z0:#C4CCD4; --z1:#8E9AA6; --z2:#2F74D0; --z3:#24995A; --z4:#EDA80F; --z5:#DD3B34;
-  --off:#DCE2E8; --accent:#2F74D0; --ok:#24995A; --bad:#DD3B34;
-  --paper:#FFF7F7; --grid1:#F6C9C9; --grid2:#EC9C9C; --trace:#1B1B1B;
-  --num:ui-rounded,"SF Pro Rounded",-apple-system,system-ui,sans-serif;
-  --txt:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
+  color-scheme:dark;
+  --bg:#0E1620; --surface:#16212D; --surface2:#1D2A38; --line:#2A394B; --fg:#E8EEF4; --muted:#8A9AAD; --accent:#3FD49B; --accent-fg:#06281B;
+  --z0:#243243; --z0fg:#C3CFDC; --z1:#6E7B8A; --z2:#2F7FC1; --z3:#2E9A5B; --z4:#E3A008; --z4fg:#1F1600; --z5:#D2343E; --zfg:#FFFFFF;
+  --bad:#FF6B6B; --warn:#F2B53A;
+  --paper:#121A24; --gminor:#2B2A35; --gmajor:#5C3039; --trace:#F4F7FA; --rmark:#FF7A82;
+  --num:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+  --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --bg:#0F1A24; --surface:#172532; --ink:#E8EEF3; --muted:#93A3B2; --line:#26384A;
-    --z0:#2C3B49; --off:#1C2B39; --paper:#FFF7F7;
-  }
-}
-:root[data-theme="dark"]{--bg:#0F1A24;--surface:#172532;--ink:#E8EEF3;--muted:#93A3B2;--line:#26384A;--z0:#2C3B49;--off:#1C2B39}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  color-scheme:light; --bg:#EDF1F5; --surface:#FFFFFF; --surface2:#F4F7FA; --line:#D3DCE5; --fg:#12202E; --muted:#5B6B7D; --accent:#0A7A52; --accent-fg:#FFFFFF;
+  --z0:#DCE3EA; --z0fg:#3B4A5A; --bad:#C62828; --warn:#A86A00; --paper:#FFF5F3; --gminor:#F7D3CE; --gmajor:#EBA098; --trace:#161616; --rmark:#C8323B; } }
+:root[data-theme="light"]{
+  color-scheme:light; --bg:#EDF1F5; --surface:#FFFFFF; --surface2:#F4F7FA; --line:#D3DCE5; --fg:#12202E; --muted:#5B6B7D; --accent:#0A7A52; --accent-fg:#FFFFFF;
+  --z0:#DCE3EA; --z0fg:#3B4A5A; --bad:#C62828; --warn:#A86A00; --paper:#FFF5F3; --gminor:#F7D3CE; --gmajor:#EBA098; --trace:#161616; --rmark:#C8323B; }
+[hidden]{display:none!important}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--txt);font-size:16px;-webkit-text-size-adjust:100%}
-button,select,input{font:inherit;color:inherit}
+html,body{background:var(--bg)}
+body{color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.4;margin:0;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,select,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 
-/* ---------- barra superior ---------- */
-header{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;gap:16px;
-  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line)}
-.brand{font-family:var(--num);font-weight:800;font-size:22px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
-.brand svg{width:26px;height:26px}
-nav{display:flex;background:var(--off);border-radius:12px;padding:3px;gap:2px}
-nav button{border:0;background:none;padding:8px 16px;border-radius:9px;font-weight:600;color:var(--muted)}
-nav button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
-.link{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);white-space:nowrap}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--bad);flex:none}
-.dot.on{background:var(--ok)}
-main{padding:16px;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
-section[hidden]{display:none}
+/* Barra superior */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px;flex-wrap:wrap}
+.brand{font-family:var(--num);font-weight:700;font-size:22px;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+.brand i{width:12px;height:12px;border-radius:50%;background:var(--z5);display:inline-block;animation:beat 1s infinite}
+@keyframes beat{0%,100%{transform:scale(.8)}15%{transform:scale(1.15)}30%{transform:scale(.9)}}
+@media (prefers-reduced-motion:reduce){.brand i{animation:none}}
+.clock{display:flex;flex-direction:column;line-height:1;margin-left:auto;text-align:right}
+.clock b{font-family:var(--num);font-weight:700;font-size:30px;font-variant-numeric:tabular-nums}
+.clock span{white-space:nowrap;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+.ctl{display:flex;gap:8px}
+.cbtn{height:44px;min-width:44px;padding:0 14px;border-radius:22px;border:1px solid var(--line);background:var(--surface2);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.cbtn.play{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);min-width:96px}
+.cbtn.stop.arm{background:var(--z5);color:var(--zfg);border-color:var(--z5)}
+.cbtn:disabled{opacity:.4;cursor:default}
+.cbtn svg{width:16px;height:16px;fill:currentColor}
 
-/* ---------- controles ---------- */
-.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px}
-.btn{border:1px solid var(--line);background:var(--surface);padding:9px 16px;border-radius:10px;font-weight:600}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
-.btn:disabled{opacity:.45;cursor:default}
-select,input[type=text],input[type=number]{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px}
-.timer{font-family:var(--num);font-weight:700;font-size:28px;font-variant-numeric:tabular-nums;min-width:118px}
+/* Herramientas */
+.tools .wrap{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-block:10px}
+.btn{height:38px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px;white-space:nowrap}
+.btn.pri{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{height:36px;padding:0 12px;border:0;background:none;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+select.sel{height:38px;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:0 8px;font-size:14px;max-width:100%}
 .spacer{flex:1}
-.hint{color:var(--muted);font-size:14px;line-height:1.45;max-width:70ch}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
 
-/* ---------- mosaico del equipo ---------- */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
-.tile{position:relative;border-radius:14px;padding:12px 14px 10px;color:#fff;background:var(--z0);min-height:168px;
-  display:flex;flex-direction:column;overflow:hidden;transition:background-color .6s}
-.tile.z0{color:var(--ink)}
-.tile.off{background:var(--off);color:var(--muted)}
-.tile .nm{font-weight:700;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:52px}
-.tile .meta{position:absolute;top:12px;right:12px;display:flex;gap:6px;align-items:center;font-size:12px;opacity:.85}
-.tile .hr{font-family:var(--num);font-weight:800;font-size:76px;line-height:.95;letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin-top:6px}
-.tile .hr small{font-size:16px;font-weight:700;letter-spacing:0;margin-left:4px;opacity:.8}
-.tile .pct{font-family:var(--num);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
-.tile .foot{margin-top:auto;display:flex;justify-content:space-between;font-size:13px;opacity:.9;font-variant-numeric:tabular-nums}
-.tile .zbar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.25);margin:8px 0 6px}
-.tile.z0 .zbar,.tile.off .zbar{background:rgba(0,0,0,.08)}
-.tile .zbar i{display:block;height:100%}
-.tile .warn{font-size:12px;font-weight:600}
-.bat{display:inline-block;width:18px;height:9px;border:1.5px solid currentColor;border-radius:2px;position:relative}
-.bat::after{content:"";position:absolute;right:-4px;top:2px;width:2px;height:3px;background:currentColor}
-.bat i{position:absolute;left:1px;top:1px;bottom:1px;background:currentColor}
-.sig{display:inline-flex;align-items:flex-end;gap:1px;height:10px}
-.sig i{width:3px;background:currentColor;opacity:.3}
-.sig i.on{opacity:1}
-.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:14px}
-.legend span{display:inline-flex;align-items:center;gap:6px}
-.legend b{width:12px;height:12px;border-radius:3px;display:inline-block}
-.empty{padding:40px 16px;text-align:center;color:var(--muted)}
-.empty strong{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
+/* Resumen del equipo */
+.team .wrap{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;padding-block:2px 12px}
+.tavg{display:flex;align-items:baseline;gap:6px;padding:6px 12px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+.tavg b{font-family:var(--num);font-size:26px;font-variant-numeric:tabular-nums}
+.tavg span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.zchips{display:flex;gap:6px;flex-wrap:wrap}
+.zc{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:54px;padding:4px 8px;border-radius:8px;line-height:1.05}
+.zc b{font-family:var(--num);font-size:22px;font-variant-numeric:tabular-nums}
+.zc span{font-size:11px;font-weight:600;letter-spacing:.04em;opacity:.9}
+.note{font-size:13px;color:var(--muted);align-self:center}
+.example{background:#F2B53A;color:#1F1600;font-weight:600;font-size:13px;padding:6px 10px;border-radius:8px;align-self:center}
 
-/* ---------- ECG ---------- */
-.ecgwrap{background:var(--paper);border-radius:14px;border:1px solid var(--line);overflow:hidden}
-canvas{display:block;width:100%}
-.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin:16px 0}
-.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
-.stat .v{font-family:var(--num);font-weight:800;font-size:28px;font-variant-numeric:tabular-nums}
-.stat .v small{font-size:14px;font-weight:600;color:var(--muted);margin-left:3px}
-.stat .k{font-size:13px;color:var(--muted)}
-.status{font-weight:600}
-.status.err{color:var(--bad)}
+/* Colores de zona */
+.z0{background:var(--z0);color:var(--z0fg)} .z1{background:var(--z1);color:var(--zfg)} .z2{background:var(--z2);color:var(--zfg)}
+.z3{background:var(--z3);color:var(--zfg)} .z4{background:var(--z4);color:var(--z4fg)} .z5{background:var(--z5);color:var(--zfg)}
 
-/* ---------- VFC ---------- */
-.two{display:grid;grid-template-columns:2fr 1fr;gap:12px}
-@media (max-width:760px){.two{grid-template-columns:1fr}}
-.cv{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px}
-.cv h3{margin:4px 6px 6px;font-size:14px;font-weight:600;color:var(--muted)}
-.ring{font-family:var(--num);font-weight:800;font-size:40px;font-variant-numeric:tabular-nums}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
-th{color:var(--muted);font-weight:600;font-size:13px}
-td.n{font-variant-numeric:tabular-nums}
-.tablewrap{overflow-x:auto}
-.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
-.up{background:#DDF3E6;color:#16693D}.dn{background:#FBE0DE;color:#9B231D}.eq{background:var(--off);color:var(--muted)}
-td input[type=text]{width:140px}
-td input[type=number]{width:76px}
-h2{font-size:18px;margin:22px 0 10px}
-.banner{background:#FFF4D6;color:#6B4A00;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:14px}
-@media (max-width:640px){
-  header{flex-wrap:wrap}
-  .link{margin-left:auto}
-  nav{order:3;width:100%;overflow-x:auto}
-  .tile .hr{font-size:60px}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+/* Cuadros */
+main{padding-block:0 32px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}
+.tile{position:relative;border-radius:12px;padding:10px 12px 12px;min-height:150px;display:flex;flex-direction:column;border:0;text-align:left;transition:background-color .6s}
+.tile .tn{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
+.tile .tn b{font-weight:700;font-size:16px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-width:0}
+.tile .tz{font-family:var(--num);font-weight:700;font-size:13px;padding:1px 6px;border-radius:5px;background:rgba(0,0,0,.18);white-space:nowrap}
+.tile .tp{font-family:var(--num);font-weight:700;font-size:62px;line-height:.95;margin-top:auto;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.tile .tp small{font-size:26px;font-weight:600;margin-left:1px}
+.tile .tb{font-family:var(--num);font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:6px}
+.tile .tb small{font-size:13px;font-weight:600;opacity:.85;letter-spacing:.04em}
+.tile .tb svg{width:14px;height:14px;fill:currentColor;opacity:.85}
+.tile .tf{display:flex;justify-content:space-between;font-size:12px;font-weight:600;opacity:.9;margin-top:4px;font-variant-numeric:tabular-nums;gap:6px}
+.tile.stale{opacity:.5}
+.tile.stale .tp{font-size:30px;line-height:1.2}
+.zbar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:rgba(0,0,0,.18);margin-top:6px}
+.zbar i{display:block;height:100%}
+.zbar .b1{background:#9AA6B4}.zbar .b2{background:#6FB3EA}.zbar .b3{background:#6CD39A}.zbar .b4{background:#FFD25A}.zbar .b5{background:#FF7A82}
+.tile .zbar{box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+
+/* Lista */
+.list{display:flex;flex-direction:column;gap:6px}
+.row{display:grid;grid-template-columns:minmax(90px,170px) minmax(0,1fr) 64px 58px;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;text-align:left;width:100%}
+.row .rn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .rbar{height:24px;border-radius:6px;background:var(--surface2);position:relative;overflow:hidden}
+.row .rbar i{position:absolute;inset:0 auto 0 0;border-radius:6px;transition:width .6s}
+.row .rbar .m50{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+.row .rv{font-family:var(--num);font-weight:700;font-size:24px;text-align:right;font-variant-numeric:tabular-nums}
+.row .rb{font-family:var(--num);font-size:18px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.row.stale{opacity:.5}
+
+/* Resumen */
+.sumhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.sumhead h2{font-size:18px;margin:0 auto 0 0}
+.sumopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:10px}
+#sMsg:not(:empty){margin-bottom:10px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{padding:8px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;background:var(--surface2);position:sticky;top:0}
+th:first-child,td:first-child{text-align:left}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--surface2)}
+tbody tr:last-child td{border-bottom:0}
+td.zcol{min-width:180px}
+td .zbar{height:14px;margin:0;border-radius:4px;background:var(--surface2)}
+td.num{font-family:var(--num);font-size:17px;font-weight:600}
+.zl{display:flex;gap:4px;font-size:11px;color:var(--muted);margin-top:3px;justify-content:space-between}
+h3.sub{font-size:15px;margin:22px 0 8px}
+
+/* Vacío */
+.empty{max-width:640px;margin:28px auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px}
+.empty h2{margin:0 0 6px;font-size:22px;text-wrap:balance}
+.empty p{color:var(--muted);margin:0 0 14px}
+.empty ol{margin:0 0 16px;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.empty .acts{display:flex;flex-wrap:wrap;gap:8px}
+.warnbox{border:1px solid var(--warn);color:var(--fg);background:var(--surface2);border-radius:10px;padding:10px 12px;font-size:14px;margin-top:12px}
+
+/* Detalle y ajustes */
+.ov{position:fixed;inset:0;background:rgba(5,10,16,.6);z-index:20;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;width:min(720px,100%);max-height:100%;overflow:auto;padding:18px}
+.card h2{margin:0;font-size:20px}
+.dhead{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.dbig{border-radius:10px;padding:8px 14px;text-align:center;line-height:1}
+.dbig b{font-family:var(--num);font-size:40px;display:block}
+.dbig span{font-size:12px;font-weight:600}
+.dstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:12px 0}
+.dstats div{background:var(--surface2);border-radius:8px;padding:8px 10px}
+.dstats span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.dstats b{font-family:var(--num);font-size:24px;font-variant-numeric:tabular-nums}
+canvas#chart{width:100%;height:190px;display:block;background:var(--surface2);border-radius:8px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+label.f input,textarea{height:40px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:0 10px;font-size:15px;text-transform:none;letter-spacing:0;color:var(--fg)}
+textarea{height:170px;width:100%;padding:8px 10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.dfoot{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;align-items:center}
+.small{font-size:13px;color:var(--muted)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+details.logs{margin-top:28px}
+details.logs summary{cursor:pointer;color:var(--muted);font-size:13px}
+#log{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);max-height:260px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0 0}
+
+/* ECG y VFC */
+.ecgv{display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel h2{font-size:18px;margin:0}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.stat{font-size:14px;color:var(--muted)}
+.stat b{color:var(--fg);font-family:var(--num);font-size:20px;font-variant-numeric:tabular-nums}
+canvas.paper{width:100%;display:block;background:var(--paper);border-radius:8px;border:1px solid var(--line)}
+#ecgLive{height:260px}
+.prog{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--z5);transition:width .3s linear}
+.disc{font-size:13px;color:var(--muted);border-left:3px solid var(--warn);padding:4px 0 4px 10px}
+.hcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.hcard{background:var(--surface2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.hcard .hn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hcard .hv{font-family:var(--num);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.05}
+.hcard .hv small{font-size:14px;color:var(--muted);font-weight:600}
+.hcard .hs{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hcard svg{width:100%;height:34px;display:block}
+.hcard svg polyline{fill:none;stroke:var(--accent);stroke-width:1.6}
+.hcard.off{opacity:.55}
+.chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700}
+.chip.low{background:var(--z5);color:var(--zfg)}.chip.ok{background:var(--z3);color:var(--zfg)}.chip.high{background:var(--z2);color:var(--zfg)}.chip.na{background:var(--surface2);color:var(--muted)}
+.tile.alert{animation:alertp 1s 5}
+@keyframes alertp{50%{box-shadow:0 0 0 4px var(--fg)}}
+@media (prefers-reduced-motion:reduce){.tile.alert{animation:none;box-shadow:0 0 0 3px var(--fg)}}
+.toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;flex-direction:column;gap:6px;width:min(440px,calc(100% - 32px));pointer-events:none}
+.toast{background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:10px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.toast.hot{background:var(--z5);color:var(--zfg)}
+.eff{display:inline-flex;align-items:baseline;gap:4px;font-family:var(--num);font-weight:700;font-size:17px}
+.eff small{font-family:var(--body);font-size:11px;font-weight:600;color:var(--muted)}
+label.chk{display:flex;align-items:center;gap:8px;font-size:14px}
+label.chk input{width:20px;height:20px}
+.desc{background:var(--surface2);border-radius:10px;padding:12px 14px;margin:10px 0;display:flex;flex-direction:column;gap:6px}
+.desc .dh{display:flex;align-items:center;gap:8px;font-weight:700}
+.desc ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
+.desc .dn{font-size:13px;color:var(--muted)}
+.chip.warn{background:var(--z4);color:var(--z4fg)}
+.tile .tn b small{font-weight:600;opacity:.75;font-size:12px;margin-left:4px}
+.hist{display:flex;flex-direction:column;gap:14px}
+.hist .acts{display:flex;gap:6px;flex-wrap:wrap}
+.hist canvas{width:100%;display:block;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.btn.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.placainfo{font-size:13px;color:var(--muted)}
+.big{font-family:var(--num);font-size:42px;font-weight:700;font-variant-numeric:tabular-nums}
+
+@media (max-width:480px){ .brand{display:none} .clock{margin-left:auto} }
+@media (max-width:620px){
+  #ecgLive{height:200px}
+  .top .wrap{gap:8px;flex-wrap:nowrap}
+  .brand{font-size:19px;gap:6px}
+  .clock b{font-size:22px}
+  .clock span{font-size:10px}
+  .tools .wrap{gap:6px}
+  .tools .spacer{display:none}
+  .btn{height:34px;padding:0 9px;font-size:13px}
+  .seg button{height:32px;padding:0 9px;font-size:13px}
+  select.sel{height:34px;font-size:13px}
+  .team .wrap{gap:6px;flex-wrap:wrap}
+  .tavg{padding:4px 8px}.tavg b{font-size:20px}.tavg span{font-size:10px}
+  .zc{min-width:40px;padding:3px 6px}.zc b{font-size:18px}
+  .cbtn{height:40px;padding:0 10px;min-width:40px}
+  .cbtn.play{min-width:70px}
+  .cbtn .lbl{display:none}
+  .cbtn.on .lbl{display:inline}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .tile{min-height:132px;padding:8px 10px 10px}
+  .tile .tp{font-size:50px}
+  .row{grid-template-columns:minmax(70px,110px) minmax(0,1fr) 48px 46px;gap:8px;padding:8px}
+  .row .rv{font-size:20px}.row .rb{font-size:15px}
 }
-@media (prefers-reduced-motion:reduce){.tile{transition:none}}
 </style>
 </head>
 <body>
-<header>
-  <div class="brand" aria-label="TrakFC">
-    <svg viewBox="0 0 26 26" aria-hidden="true"><path d="M1 14h5l2.5-6 4 12 3-9 2 3H25" fill="none" stroke="#DD3B34" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    TrakFC
-  </div>
-  <nav role="tablist">
-    <button role="tab" aria-selected="true" data-tab="team">Equipo</button>
-    <button role="tab" aria-selected="false" data-tab="ecg">ECG</button>
-    <button role="tab" aria-selected="false" data-tab="hrv">VFC</button>
-    <button role="tab" aria-selected="false" data-tab="bands">Bandas</button>
-  </nav>
-  <div class="link"><span class="dot" id="linkDot"></span><span id="linkTxt">Buscando TrakFC…</span></div>
-</header>
 
-<main>
-<!-- ======================= EQUIPO ======================= -->
-<section id="team">
-  <div class="bar">
-    <span class="timer" id="sesTimer">00:00</span>
-    <button class="btn primary" id="sesBtn">Iniciar sesión</button>
-    <button class="btn" id="sesCsv" disabled>Exportar datos</button>
-    <button class="btn" id="sesSum" disabled>Exportar resumen</button>
-    <span class="spacer"></span>
-    <label class="hint" for="sortSel">Ordenar</label>
-    <select id="sortSel">
-      <option value="name">Nombre</option>
-      <option value="pct">% FC máx</option>
-      <option value="hr">FC</option>
-    </select>
+<header class="top"><div class="wrap">
+  <div class="brand"><i aria-hidden="true"></i>TrakFC</div>
+  <div class="ctl">
+    <button class="cbtn play" id="btnPlay" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2l10 6-10 6z"/></svg><span id="playLbl">Iniciar</span></button>
+    <button class="cbtn" id="btnBlock" type="button" disabled title="Cerrar el bloque actual y empezar otro">+ <span class="lbl">Bloque</span></button>
+    <button class="cbtn" id="btnHrr" type="button" disabled title="Medir cuánto baja la FC en 60 s después del esfuerzo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.5 1.8 8.6A3.9 3.9 0 0 1 8 3.6a3.9 3.9 0 0 1 6.2 5z"/></svg><span class="lbl" id="hrrLbl">Recup.</span></button>
+    <button class="cbtn stop" id="btnStop" type="button" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1"/></svg><span class="lbl" id="stopLbl">Finalizar</span></button>
   </div>
-  <div class="grid" id="grid"></div>
-  <div class="legend">
-    <span><b style="background:var(--z1)"></b>Z1 50–60 %</span>
-    <span><b style="background:var(--z2)"></b>Z2 60–70 %</span>
-    <span><b style="background:var(--z3)"></b>Z3 70–80 %</span>
-    <span><b style="background:var(--z4)"></b>Z4 80–90 %</span>
-    <span><b style="background:var(--z5)"></b>Z5 90–100 %</span>
-    <span>TRIMP de Edwards = minutos en zona × número de zona</span>
-  </div>
-</section>
+  <div class="clock"><b id="clock">0:00:00</b><span id="clockLbl">Sin sesión</span></div>
+</div></header>
 
-<!-- ======================= ECG ======================= -->
-<section id="ecg" hidden>
-  <div class="bar">
-    <select id="ecgSel" aria-label="Banda Polar H10"></select>
-    <button class="btn primary" id="ecg30">Registrar 30 s</button>
-    <button class="btn" id="ecgLive">Ver en continuo</button>
-    <button class="btn danger" id="ecgStopBtn" disabled>Detener</button>
-    <button class="btn" id="ecgCsv" disabled>Exportar ECG</button>
-    <span class="spacer"></span>
-    <label class="hint" for="ecgGain">Ganancia</label>
-    <select id="ecgGain"><option value="0.5">5 mm/mV</option><option value="1" selected>10 mm/mV</option><option value="2">20 mm/mV</option></select>
+<section class="tools"><div class="wrap">
+  <button class="btn pri" id="btnAdd" type="button">+ Banda Bluetooth</button>
+  <button class="btn" id="btnAnt" type="button" hidden>+ Antena ANT+</button>
+  <button class="btn" id="btnPlaca" type="button">+ Placa TrakFC</button>
+  <button class="btn" id="btnSaved" type="button" hidden>Conectar guardadas</button>
+  <div class="seg" role="group" aria-label="Vista">
+    <button type="button" data-view="tiles" aria-pressed="true">Cuadros</button>
+    <button type="button" data-view="list" aria-pressed="false">Lista</button>
+    <button type="button" data-view="sum" aria-pressed="false">Resumen</button>
+    <button type="button" data-view="ecg" aria-pressed="false">ECG y VFC</button>
+    <button type="button" data-view="hist" aria-pressed="false">Historial</button>
   </div>
-  <p class="status" id="ecgStatus">Elegí una Polar H10 conectada y tocá Registrar 30 s.</p>
-  <div class="ecgwrap"><canvas id="ecgCv" height="300"></canvas></div>
-  <div class="stats" id="ecgStats" hidden></div>
-  <div class="ecgwrap" id="stripWrap" hidden><canvas id="stripCv"></canvas></div>
-  <p class="hint">Mojá los electrodos y pedile al jugador que se quede quieto, sentado o acostado. Papel a 25 mm/s. Es un registro para seguimiento deportivo, no un estudio médico: cualquier trazado llamativo lo tiene que ver un cardiólogo.</p>
-</section>
+  <select class="sel" id="selSort" aria-label="Orden">
+    <option value="name">Orden: nombre</option>
+    <option value="pct">Orden: % FC máx</option>
+    <option value="red">Orden: tiempo en Z5</option>
+    <option value="load">Orden: carga</option>
+  </select>
+  <span class="spacer"></span>
+  <button class="btn" id="btnCsv" type="button">Exportar CSV</button>
+  <button class="btn" id="btnCfg" type="button">Ajustes</button>
+  <button class="btn" id="btnDemo" type="button">Demo</button>
+</div></section>
 
-<!-- ======================= VFC ======================= -->
-<section id="hrv" hidden>
-  <div class="bar">
-    <select id="hrvSel" aria-label="Jugador"></select>
-    <select id="hrvDur" aria-label="Duración">
-      <option value="60">1 min</option><option value="120">2 min</option>
-      <option value="180">3 min</option><option value="300" selected>5 min</option>
-    </select>
-    <select id="hrvPos" aria-label="Posición">
-      <option>Supino</option><option>Sentado</option><option>De pie</option>
-    </select>
-    <label class="hint"><input type="checkbox" id="hrvStab" checked> Descartar los primeros 30 s</label>
-    <button class="btn primary" id="hrvBtn">Iniciar test</button>
-    <button class="btn" id="hrvCsv" disabled>Exportar RR</button>
+<section class="team" id="team"><div class="wrap">
+  <div class="tavg"><b id="avgPct">–</b><span>% medio equipo</span></div>
+  <div class="zchips" id="zchips"></div>
+  <span class="example" id="exampleTag" hidden>Datos de ejemplo</span>
+  <span class="note" id="teamNote"></span>
+</div></section>
+
+<main class="wrap">
+  <div id="empty" class="empty">
+    <h2>Conectá las bandas del equipo</h2>
+    <p>Cada jugador aparece en un cuadro que cambia de color según su zona de frecuencia cardíaca.</p>
+    <ol>
+      <li>Poné las bandas en el pecho con el sensor húmedo para que se enciendan.</li>
+      <li id="emptyPlaca">Con la <b>placa TrakFC</b> al costado de la cancha: conectate a la WiFi <b>TrakFC</b> y abrí <b>http://192.168.4.1</b>. Las bandas aparecen solas.</li>
+      <li>Tocá <b>+ Banda Bluetooth</b> y elegí cada banda (en iPad, con Bluefy). En la notebook también podés enchufar la antena USB y tocar <b>+ Antena ANT+</b>: toma todas las bandas ANT+ a la vez.</li>
+      <li>Tocá un cuadro para ponerle el nombre del jugador y su FC máxima.</li>
+      <li>Usá <b>Iniciar</b> para registrar la sesión. Al finalizar vas a ver el resumen por zonas.</li>
+    </ol>
+    <div class="acts">
+      <button class="btn pri" type="button" data-act="add">+ Banda Bluetooth</button>
+      <button class="btn" type="button" data-act="demo">Ver con 17 jugadores de ejemplo</button>
+    </div>
+    <div class="warnbox" id="noBle" hidden>Este navegador no tiene Bluetooth web. En iPhone/iPad abrí la app en <b>Bluefy</b>; en la notebook o Android usá <b>Chrome</b>.</div>
   </div>
-  <div class="banner" id="hrvWarn" hidden></div>
-  <div class="two">
-    <div class="cv"><h3>Tacograma (RR en ms)</h3><canvas id="tachoCv" height="240"></canvas></div>
-    <div class="cv" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
-      <span class="hint" id="hrvPhase">Listo para empezar</span>
-      <span class="ring" id="hrvClock">05:00</span>
-      <span class="hint" id="hrvLive">— lpm · — latidos</span>
+  <div id="tiles" class="grid" hidden></div>
+  <div id="list" class="list" hidden></div>
+  <div id="sum" hidden>
+    <div class="sumhead">
+      <h2 id="sumTitle">Resumen</h2>
+      <select class="sel" id="selScope" aria-label="Período"><option value="sess">Sesión completa</option><option value="block">Bloque actual</option></select>
+      <button class="btn pri" id="sPdf" type="button">Informe PDF</button>
+    </div>
+    <div class="sumopts">
+      <label class="f">Nombre de la sesión (sale en el informe)<input id="sTitle" type="text" autocomplete="off" placeholder="Ej.: Martes · físico en cancha"></label>
+      <label class="f">Observaciones (salen en el informe)<input id="sObs" type="text" autocomplete="off" placeholder="Ej.: clima, cambios del plan, ausentes"></label>
+    </div>
+    <div class="small" id="sMsg"></div>
+    <div class="tbl"><table>
+      <thead><tr><th>Jugador</th><th>Tiempo</th><th>FC media</th><th>FC máx</th><th>% máx</th><th>Tiempo por zona</th><th>Z4</th><th>Z5</th><th title="Carga de entrenamiento (TRIMP de Edwards)">Carga</th><th title="Calorías activas estimadas">Kcal</th><th>Esfuerzo</th><th title="Última recuperación de FC en 60 s">Recup.</th></tr></thead>
+      <tbody id="sumBody"></tbody>
+    </table></div>
+    <div id="blocksWrap" hidden>
+      <h3 class="sub">Bloques cerrados</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>FC media</th><th>FC máx</th><th>Z4</th><th>Z5</th><th>Carga</th><th>Kcal</th><th>Esfuerzo</th></tr></thead>
+        <tbody id="blkBody"></tbody>
+      </table></div>
+    </div>
+    <div id="hrrWrap" hidden>
+      <h3 class="sub">Recuperación de la FC (60 s)</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Jugador</th><th>Momento</th><th>Bloque</th><th>FC al terminar</th><th>FC a los 60 s</th><th>Bajó</th><th>Su promedio</th><th></th></tr></thead>
+        <tbody id="hrrBody"></tbody>
+      </table></div>
+      <p class="small">Cuánto baja la FC en el primer minuto después de cortar el esfuerzo. Cuanto más baja, mejor recuperación. Se compara con el promedio de sus últimas 5 mediciones.</p>
     </div>
   </div>
-  <div class="stats" id="hrvStats" hidden></div>
-  <div class="two" id="hrvResult" hidden>
-    <div class="cv"><h3>Historial del jugador</h3><div class="tablewrap" id="hrvHist"></div>
-      <div class="bar" style="margin:10px 6px 4px"><button class="btn" id="histCsv">Exportar historial</button></div></div>
-    <div class="cv"><h3>Poincaré (RRn vs RRn+1)</h3><canvas id="poinCv" height="260"></canvas></div>
+  <div id="hist" class="hist" hidden>
+    <div id="hList">
+      <div class="sumhead"><h2>Sesiones guardadas</h2><span class="small" id="hInfo"></span></div>
+      <div class="tbl"><table>
+        <thead><tr><th>Fecha</th><th>Sesión</th><th>Duración</th><th>Jugadores</th><th>Bloques</th><th>Carga media</th><th></th></tr></thead>
+        <tbody id="histBody"></tbody>
+      </table></div>
+      <p class="small">Cada sesión se guarda sola en este dispositivo mientras está en curso (cada 10 s). Si se cierra la app o se recarga la página, al volver se retoma. Abrí TrakFC desde el ícono de inicio para que el navegador no borre los datos, y exportá cada tanto como respaldo.</p>
+    </div>
+    <div id="hDet" hidden>
+      <div class="sumhead">
+        <button class="btn" id="hBack" type="button">Volver al historial</button>
+        <h2 id="hTitle">Sesión</h2>
+        <button class="btn" id="hRen" type="button">Renombrar</button>
+        <button class="btn pri" id="hPdf" type="button">Informe PDF</button>
+        <button class="btn" id="hCsvS" type="button">Exportar CSV</button>
+        <button class="btn danger" id="hDel" type="button">Borrar</button>
+      </div>
+      <div class="small" id="hMeta"></div>
+      <canvas id="hChart" height="220" aria-label="Promedio del equipo en % de FC máxima"></canvas>
+      <div class="tbl"><table>
+        <thead><tr><th>Jugador</th><th>Tiempo</th><th>FC media</th><th>FC máx</th><th>% máx</th><th>Tiempo por zona</th><th>Z4</th><th>Z5</th><th>Carga</th><th>Kcal</th><th>Esfuerzo</th><th>Recup.</th></tr></thead>
+        <tbody id="hSum"></tbody>
+      </table></div>
+      <div id="hBlkWrap" hidden>
+        <h3 class="sub">Bloques</h3>
+        <div class="tbl"><table>
+          <thead><tr><th>Jugador</th><th>Bloque</th><th>Duración</th><th>FC media</th><th>FC máx</th><th>Z4</th><th>Z5</th><th>Carga</th><th>Kcal</th><th>Esfuerzo</th></tr></thead>
+          <tbody id="hBlk"></tbody>
+        </table></div>
+      </div>
+      <div class="small" id="hMsg"></div>
+    </div>
   </div>
-  <p class="hint">Lo ideal es medir a la mañana, siempre en la misma posición, respirando normal. lnRMSSD se compara contra el promedio de los 7 tests anteriores: si cae más de ½ desvío estándar, se marca en rojo.</p>
-</section>
+  <div id="ecgv" class="ecgv" hidden>
+    <div class="bar"><div class="seg" role="group" aria-label="Herramienta">
+      <button type="button" data-sub="ecg" aria-pressed="true">Electrocardiograma</button>
+      <button type="button" data-sub="hrv" aria-pressed="false">Test de VFC</button>
+    </div></div>
 
-<!-- ======================= BANDAS ======================= -->
-<section id="bands" hidden>
-  <div class="bar">
-    <span id="connInfo" class="hint"></span>
-    <span class="spacer"></span>
-    <label class="hint"><input type="checkbox" id="onlyAsg"> Conectar solo bandas asignadas</label>
+    <section id="pEcg" class="panel">
+      <div class="bar">
+        <h2>Electrocardiograma</h2><span class="spacer"></span>
+        <select class="sel" id="eDev" aria-label="Banda para el ECG"></select>
+        <button class="btn" id="eLive" type="button">Ver en vivo</button>
+        <button class="btn pri" id="eRec" type="button">Grabar 30 s</button>
+      </div>
+      <div class="stat" id="eStat">Conectá una Polar H10 con + Banda Bluetooth. Solo esa banda manda la señal del electrocardiograma.</div>
+      <canvas class="paper" id="ecgLive" aria-label="Electrocardiograma en vivo"></canvas>
+      <div class="prog" id="eProg" hidden><i></i></div>
+      <div id="eReview" hidden>
+        <div class="bar"><h2 id="rTitle">Registro</h2><span class="spacer"></span><button class="btn pri" id="rPdf" type="button">Informe PDF</button><button class="btn" id="rCsv" type="button">Exportar CSV</button><button class="btn danger" id="rDel" type="button">Borrar</button></div>
+        <div class="dstats" id="rStats"></div>
+        <div class="desc" id="rDesc"></div>
+        <canvas class="paper" id="ecgRev" aria-label="Registro de 30 segundos"></canvas>
+        <label class="f" style="margin-top:10px">Observaciones (salen en el informe)<input id="rObs" type="text" autocomplete="off" placeholder="Ej.: en reposo, sentado, post-entrenamiento"></label>
+        <div class="small" id="rMsg"></div>
+      </div>
+      <div id="eSavedWrap" hidden>
+        <h3 class="sub">Registros guardados en este dispositivo (últimos 30)</h3>
+        <div class="tbl"><table><thead><tr><th>Fecha</th><th>Jugador</th><th>FC media</th><th>Latidos</th><th>RMSSD</th></tr></thead><tbody id="eSaved"></tbody></table></div>
+      </div>
+      <p class="disc">Papel a 25 mm/s y 10 mm/mV: cada cuadro grande es 0,2 s y 0,5 mV. Una derivación sola, medida en el pecho. No es un estudio médico ni detecta arritmias: si un trazado se ve raro, que lo vea un cardiólogo.</p>
+    </section>
+
+    <section id="pHrv" class="panel" hidden>
+      <div class="bar">
+        <h2>Test de VFC</h2><span class="spacer"></span>
+        <select class="sel" id="hDur" aria-label="Duración"><option value="60">1 min</option><option value="120">2 min</option><option value="180" selected>3 min</option><option value="300">5 min</option></select>
+        <select class="sel" id="hPos" aria-label="Posición"><option>Acostado</option><option selected>Sentado</option><option>Parado</option></select>
+        <button class="btn pri" id="hGo" type="button">Iniciar test</button>
+      </div>
+      <div class="stat" id="hStat">Mide a todos los jugadores con banda conectada al mismo tiempo. Hacelo a la mañana, en reposo, siempre en la misma posición, respirando normal y sin hablar.</div>
+      <div class="prog" id="hProg" hidden><i></i></div>
+      <div class="hcards" id="hLive"></div>
+      <div id="hResWrap" hidden>
+        <h3 class="sub">Resultado del test</h3>
+        <div class="tbl"><table><thead><tr><th>Jugador</th><th>FC media</th><th>RMSSD</th><th>ln RMSSD</th><th>SDNN</th><th>Resp/min</th><th>VO2 máx est.</th><th>Latidos</th><th>Artefactos</th><th>Frente a su base</th></tr></thead><tbody id="hRes"></tbody></table></div>
+      </div>
+      <div class="bar"><h3 class="sub" style="margin:8px auto 0 0">Historial</h3>
+        <select class="sel" id="hPlayer" aria-label="Jugador"></select>
+        <button class="btn" id="hCsv" type="button">Exportar historial</button></div>
+      <div class="tbl"><table><thead><tr><th>Fecha</th><th>Jugador</th><th>Posición</th><th>Duración</th><th>FC media</th><th>RMSSD</th><th>ln RMSSD</th><th>Resp/min</th><th>Frente a su base</th></tr></thead><tbody id="hHist"></tbody></table></div>
+      <p class="disc">RMSSD en milisegundos. La base de cada jugador es el promedio de sus últimos 7 tests (hacen falta al menos 3). Se marca por debajo o por encima cuando el ln RMSSD se aleja más de medio desvío de esa base.</p>
+    </section>
   </div>
-  <div class="banner" id="maxWarn" hidden></div>
-  <div class="panel tablewrap">
-    <table>
-      <thead><tr><th></th><th>Banda</th><th>Señal</th><th>Batería</th><th>FC</th><th>Jugador</th><th>FC máx</th><th></th></tr></thead>
-      <tbody id="bandRows"></tbody>
-    </table>
-  </div>
-  <p class="hint">Las bandas aparecen solas cuando están mojadas y puestas. Una banda solo acepta una conexión: cerrá Polar Beat, Polar Flow u otras apps que la estén usando. Con "Conectar solo bandas asignadas" la placa ignora las bandas de otros equipos.</p>
-</section>
+  <details class="logs"><summary>Registro técnico</summary><pre id="log"></pre></details>
 </main>
 
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<div class="ov" id="ovD" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <div class="dhead">
+      <div class="dbig z0" id="dBig"><b id="dPct">–</b><span id="dBpm">– lpm</span></div>
+      <div style="min-width:0"><h2 id="dTitle">Jugador</h2><div class="small" id="dDev"></div></div>
+    </div>
+    <canvas id="chart" width="700" height="190" aria-label="Curva de frecuencia cardíaca de la sesión"></canvas>
+    <div class="dstats" id="dStats"></div>
+    <div class="form">
+      <label class="f">Nombre del jugador<input id="dName" type="text" autocomplete="off"></label>
+      <label class="f" id="dNumWrap" hidden>N° de banda (queda grabado en la placa)<input id="dNum" type="text" maxlength="6" autocomplete="off" placeholder="Ej.: 7"></label>
+      <label class="f">FC máxima (lpm)<input id="dMax" type="number" inputmode="numeric" min="120" max="240" placeholder="usa la general"></label>
+      <label class="f">FC de reposo (lpm)<input id="dRep" type="number" inputmode="numeric" min="30" max="110" placeholder="del último test de VFC"></label>
+      <label class="f">Peso (kg)<input id="dPeso" type="number" inputmode="decimal" min="40" max="160" placeholder="85 si no se carga"></label>
+      <label class="f">Edad<input id="dEdad" type="number" inputmode="numeric" min="12" max="70" placeholder="22 si no se carga"></label>
+      <label class="f">Sexo<select id="dSexo" class="sel" style="height:40px"><option value="M">Masculino</option><option value="F">Femenino</option></select></label>
+    </div>
+    <p class="small">Peso, edad y sexo se usan para las calorías. La FC de reposo y la FC máxima, para estimar el VO2 máx.</p>
+    <div class="dfoot">
+      <button class="btn danger" id="dRemove" type="button">Quitar banda</button>
+      <span class="spacer"></span>
+      <button class="btn pri" id="dClose" type="button">Listo</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ovC" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="cTitle">
+    <h2 id="cTitle">Ajustes</h2>
+    <div class="form">
+      <label class="f">FC máxima general (lpm)<input id="cMax" type="number" inputmode="numeric" min="120" max="240"></label>
+      <label class="f">Sin señal después de (s)<input id="cStale" type="number" inputmode="numeric" min="4" max="60"></label>
+    </div>
+    <h3 class="sub">Alertas durante la sesión</h3>
+    <div class="form">
+      <label class="chk"><input id="cAlOn" type="checkbox"> Avisar cuando un jugador se pasa de la FC</label>
+      <label class="chk"><input id="cAlSnd" type="checkbox"> Con sonido</label>
+      <label class="f">Avisar desde (% FC máx)<input id="cAlPct" type="number" inputmode="numeric" min="70" max="100"></label>
+      <label class="f">Avisar si sigue en Z5 más de (s)<input id="cAlZ5" type="number" inputmode="numeric" min="15" max="900"></label>
+    </div>
+    <p class="small">Zonas por % de FC máxima: Z1 50–60 · Z2 60–70 · Z3 70–80 · Z4 80–90 · Z5 90–100. La carga es el TRIMP de Edwards: minutos en cada zona multiplicados por 1 a 5.</p>
+    <h3 class="sub">Nombres de los jugadores</h3>
+    <p class="small" id="nSrc"></p>
+    <textarea id="nText" spellcheck="false" aria-label="Nombres en formato JSON"></textarea>
+    <div class="dfoot">
+      <button class="btn" id="nCopy" type="button">Copiar</button>
+      <button class="btn" id="nApply" type="button">Aplicar nombres</button>
+      <span class="small" id="nMsg"></span>
+      <span class="spacer"></span>
+      <button class="btn" id="cCancel" type="button">Cancelar</button>
+      <button class="btn pri" id="cSave" type="button">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <script>
-"use strict";
-/* =====================================================================
-   Utilidades
-   ===================================================================== */
-const $ = s => document.querySelector(s);
-const DEMO = /demo/.test(location.search) || location.protocol === "file:";
-const ZC = ["--z0","--z1","--z2","--z3","--z4","--z5"];
-const DEFAULT_HRMAX = 200;
-const pad2 = n => String(n).padStart(2,"0");
-const fmtT = s => { s = Math.max(0, Math.round(s)); return pad2(Math.floor(s/60)) + ":" + pad2(s%60); };
-const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function store(k, v){ try{ if(v===undefined) return JSON.parse(localStorage.getItem(k)||"null"); localStorage.setItem(k, JSON.stringify(v)); }catch(e){ return null; } }
-function download(name, text){
-  const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+function log(...a){const el=$('#log'); el.textContent=(new Date().toLocaleTimeString()+'  '+a.join(' ')+'\n'+el.textContent).slice(0,30000);}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(v,d=0)=>v==null||!isFinite(v)?'–':v.toLocaleString('es-AR',{maximumFractionDigits:d,minimumFractionDigits:d});
+const mmss=s=>!isFinite(s)||s<=0?'0:00':Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+const PMD_S='fb005c80-02e7-f387-1cad-8acd2d8df0c8', PMD_CP='fb005c81-02e7-f387-1cad-8acd2d8df0c8', PMD_D='fb005c82-02e7-f387-1cad-8acd2d8df0c8';
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const hex=u=>Array.from(u,x=>x.toString(16).padStart(2,'0')).join(' ');
+const hms=s=>{s=Math.max(0,Math.floor(s)); return Math.floor(s/3600)+':'+String(Math.floor(s/60)%60).padStart(2,'0')+':'+String(s%60).padStart(2,'0');};
+
+/* ---------- Configuración (nombres y FC máx compartidos con TrakLive si están en el mismo sitio) ---------- */
+const tl=store.get('traklive.cfg',{});
+const cfg=Object.assign({hrmax:tl.hrmax||195,stale:10},store.get('trakfc.cfg',{}));
+cfg.alerts=Object.assign({on:true,sound:true,pct:92,z5s:120},cfg.alerts||{});
+const pcfg=store.get('traklive.player',{});   // por nombre de jugador: {hrmax}
+const names=store.get('traklive.names',{});   // por banda: "FC:<nombre bluetooth>" o "FC:ANT <número>"
+let view=store.get('trakfc.view','tiles'), sortMode=store.get('trakfc.sort','name'), scope='sess';
+const hrmaxOf=l=>(pcfg[l]&&+pcfg[l].hrmax)||cfg.hrmax;
+const zoneOf=pct=>pct==null?-1:pct<0.5?0:pct<0.6?1:pct<0.7?2:pct<0.8?3:pct<0.9?4:5;
+const ZN=['<50%','Z1','Z2','Z3','Z4','Z5'];
+let rosterInfo='No se encontró jugadores.json; los nombres quedan guardados solo en este dispositivo.';
+async function loadRoster(){
+  for(const url of ['jugadores.json','../jugadores.json']){
+    try{ const r=await fetch(url,{cache:'no-store'}); if(!r.ok)continue; const j=await r.json(); let n=0;
+      for(const [k,v] of Object.entries(j)) if(typeof v==='string'&&v.trim()){ names[k]=v.trim(); n++; }
+      store.set('traklive.names',names); rosterInfo='Se cargaron '+n+' nombres desde '+url+'.'; render(); return; }catch(e){}
+  } }
+
+/* ---------- Sesión ---------- */
+const sess={state:'idle',accum:0,since:0,block:1,blockStart:0,t0:0,marks:[],title:'',obs:''};
+const elapsed=()=>(sess.accum+(sess.state==='running'?(Date.now()-sess.since):0))/1000;
+const bands=new Map(); let order=0; let history=[]; let closedBlocks=[]; let openKey=null; let demoMode=false;
+const accZero=()=>({t:0,sum:0,max:0,z:[0,0,0,0,0,0],trimp:0,kcal:0});
+const prof=l=>Object.assign({peso:null,edad:null,sexo:'M',fcrep:null},pcfg[l]||{});
+function kcalMin(l,hr){ if(hr<90) return 0; const p=prof(l), W=+p.peso||85, A=+p.edad||22; // Keytel et al. 2005
+  const v=p.sexo==='F'?(-20.4022+0.4472*hr-0.1263*W+0.074*A):(-55.0969+0.6309*hr+0.1988*W+0.2017*A); return Math.max(0,v/4.184); }
+const EFF_T=[3,15,35,60,90,125,165,210,260,320];
+const effortOf=t=>{ let e=0; for(const x of EFF_T) if(t>=x) e++; return e; };
+const effLabel=e=>e<=0?'–':e<=3?'Fácil':e<=6?'Moderado':e<=8?'Difícil':'Máximo';
+const effHtml=e=>e>0?'<span class="eff">'+e+' <small>'+effLabel(e)+'</small></span>':'–';
+function restHr(l){ const p=prof(l); if(+p.fcrep>0) return {v:+p.fcrep,src:'cargada'}; const h=(typeof hrvHist!=='undefined'?hrvHist:[]).filter(x=>x.jugador===l&&x.hr).slice(-1)[0]; return h?{v:Math.round(h.hr),src:'test de VFC'}:null; }
+function vo2Of(l){ const r=restHr(l); return r?15.3*hrmaxOf(l)/r.v:null; } // Uth et al. 2004
+
+function initBand(b){ b.order=order++; b.hr=null; b.lastOk=0; b.lastT=0; b.acc=accZero(); b.bacc=accZero(); b.samples=[]; b.lastS=-99; b.removed=false; b.battery=b.battery??null; b.status=b.status||'Conectando';
+  const rk=resumeAcc.size?b.bandKey():null, r=rk&&resumeAcc.get(rk); if(r){ b.acc=r.acc; b.bacc=r.bacc||accZero(); b.samples=r.samples||[]; b.lastS=r.lastS??-99; b.hrrLast=r.hrrLast||undefined; resumeAcc.delete(rk); } }
+const resumeAcc=new Map();
+function label(b){ return names[b.bandKey()]||b.defLabel(); }
+function feedHr(b,hr){
+  const now=Date.now(); if(!(hr>=25&&hr<=240))return;
+  if(sess.state==='running'){
+    if(b.lastT&&b.hr!=null){ const dt=Math.min(5,(now-b.lastT)/1000), z=zoneOf(b.hr/hrmaxOf(label(b)));
+      const kc=kcalMin(label(b),b.hr)*dt/60; for(const a of [b.acc,b.bacc]){ a.t+=dt; a.sum+=b.hr*dt; a.z[z]+=dt; a.trimp+=dt/60*Math.max(0,z); a.kcal+=kc; } }
+    checkAlerts(b,hr,now);
+    b.acc.max=Math.max(b.acc.max,hr); b.bacc.max=Math.max(b.bacc.max,hr);
+    const e=elapsed(); if(e-b.lastS>=5){ b.lastS=e; b.samples.push([e,hr]);
+      history.push({hora:new Date(now).toLocaleTimeString('es-AR'),tiempo:hms(e),jugador:label(b),banda:b.bandKey().slice(3),bloque:sess.block,fc:hr,pct_fcmax:Math.round(hr/hrmaxOf(label(b))*100)}); }
+  }
+  b.recent=b.recent||[]; b.recent.push([now,hr]); while(b.recent.length&&now-b.recent[0][0]>30000) b.recent.shift();
+  b.hr=hr; b.lastT=now; b.lastOk=now; scheduleRender();
 }
-const stamp = () => { const d = new Date(); return d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())+"_"+pad2(d.getHours())+pad2(d.getMinutes()); };
-function zoneOf(pct){ return pct < 50 ? 0 : pct < 60 ? 1 : pct < 70 ? 2 : pct < 80 ? 3 : pct < 90 ? 4 : 5; }
-const label = b => b.name || b.dev || b.mac;
-const hrmaxOf = b => b.hrmax > 0 ? b.hrmax : DEFAULT_HRMAX;
+function stats(a,l){ const avg=a.t>0?a.sum/a.t:null; return {t:a.t,avg,max:a.max||null,pmax:a.max?a.max/hrmaxOf(l):null,z:a.z,trimp:a.trimp,kcal:a.kcal||0,eff:effortOf(a.trimp)}; }
 
-/* =====================================================================
-   API (real o demo)
-   ===================================================================== */
-async function api(path){
-  if (DEMO) return Demo.handle(path);
-  const r = await fetch(path, {cache:"no-store"});
-  if (!r.ok) throw new Error(r.status);
-  return r.json();
+function setPlay(){ const st=sess.state;
+  $('#playLbl').textContent=st==='running'?'Pausa':st==='paused'?'Seguir':'Iniciar';
+  $('#btnPlay').querySelector('path').setAttribute('d',st==='running'?'M4 2h3v12H4zM9 2h3v12H9z':'M4 2l10 6-10 6z');
+  $('#btnStop').disabled=!(st==='running'||st==='paused'); $('#btnBlock').disabled=st!=='running';
+  tickClock(); }
+function playPause(){
+  const now=Date.now();
+  if(sess.state==='idle'||sess.state==='done'){
+    sess.accum=0; sess.since=now; sess.t0=now; sess.marks=[]; sess.block=1; sess.blockStart=0; sess.state='running'; history=[]; closedBlocks=[]; hrrList=[];
+    sess.obs=''; $('#sObs').value=''; $('#sMsg').textContent='';
+    for(const b of bands.values()){ b.acc=accZero(); b.bacc=accZero(); b.samples=[]; b.lastS=-99; b.lastT=0; }
+    log('Sesión iniciada'); if(view==='sum'||view==='hist')setView('tiles'); try{ navigator.storage&&navigator.storage.persist&&navigator.storage.persist(); }catch(e){} lastSnap=0;
+  } else if(sess.state==='running'){ sess.accum+=now-sess.since; sess.state='paused'; log('Sesión en pausa'); }
+  else { sess.since=now; sess.state='running'; for(const b of bands.values()) b.lastT=0; log('Sesión reanudada'); }
+  initAudio(); keepAwake(); setPlay(); render(); }
+function closeBlock(){
+  const dur=elapsed()-sess.blockStart; if(dur<1)return;
+  for(const b of bands.values()){ if(b.bacc.t<=0)continue; const s=stats(b.bacc,label(b));
+    closedBlocks.push({jugador:label(b),bloque:sess.block,duracion:dur,avg:s.avg,max:s.max,z4:s.z[4],z5:s.z[5],trimp:s.trimp,kcal:s.kcal,eff:s.eff}); }
 }
+function newBlock(){ if(sess.state!=='running')return; closeBlock(); sess.block++; sess.blockStart=elapsed(); sess.marks.push(sess.blockStart); for(const b of bands.values()) b.bacc=accZero(); log('Bloque',sess.block,'iniciado'); render(); }
+let stopArm=null;
+function stopSession(){
+  const btn=$('#btnStop');
+  if(!stopArm){ btn.classList.add('arm'); $('#stopLbl').textContent='¿Finalizar?'; btn.querySelector('.lbl').style.display='inline'; stopArm=setTimeout(()=>{stopArm=null;btn.classList.remove('arm');$('#stopLbl').textContent='Finalizar';btn.querySelector('.lbl').style.display='';},3500); return; }
+  clearTimeout(stopArm); stopArm=null; btn.classList.remove('arm'); $('#stopLbl').textContent='Finalizar'; btn.querySelector('.lbl').style.display='';
+  if(sess.state==='running') sess.accum+=Date.now()-sess.since;
+  sess.state='done'; closeBlock(); log('Sesión finalizada:',hms(elapsed())); saveSession(); setPlay(); setView('sum'); }
 
-/* =====================================================================
-   Estado general
-   ===================================================================== */
-let S = {bands:[], ecg:{status:0}, maxConn:9, onlyAssigned:false};
-let online = false;
-let tab = "team";
-
-async function pollState(){
-  try{
-    S = await api("/api/state");
-    online = true;
-    $("#linkDot").className = "dot on";
-    const n = S.bands.filter(b => b.conn).length;
-    $("#linkTxt").textContent = (DEMO ? "Demo · " : "") + n + (n === 1 ? " banda" : " bandas");
-  }catch(e){
-    online = false;
-    $("#linkDot").className = "dot";
-    $("#linkTxt").textContent = "Sin conexión. Unite a la red WiFi TrakFC";
+/* ---------- Banda Bluetooth (servicio estándar 0x180D) ---------- */
+class Band{
+  constructor(device){this.device=device;this.key='band:'+device.id;this.kind='Bluetooth';this.retry=0;initBand(this);
+    device.addEventListener('gattserverdisconnected',()=>this.onDisc());}
+  bandKey(){return 'FC:'+(this.device.name||this.device.id)}
+  defLabel(){return this.device.name||'Banda'}
+  async connect(){
+    this.status=this.lastOk?'Reconectando':'Conectando'; render();
+    const to=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('tiempo de espera agotado')),ms))]);
+    const server=await to(this.device.gatt.connect(),12000);
+    const svc=await to(server.getPrimaryService('heart_rate'),8000);
+    if(this.ch&&this.handler)this.ch.removeEventListener('characteristicvaluechanged',this.handler);
+    this.ch=await svc.getCharacteristic('heart_rate_measurement');
+    this.handler=this.handler||(e=>this.onHr(e.target.value));
+    this.ch.addEventListener('characteristicvaluechanged',this.handler);
+    await to(this.ch.startNotifications(),8000);
+    try{ const bs=await server.getPrimaryService('battery_service'); const bl=await (await bs.getCharacteristic('battery_level')).readValue(); this.battery=bl.getUint8(0); }catch(e){}
+    this.server=server; try{ this.pmdSvc=await to(server.getPrimaryService(PMD_S),5000); this.pmd=true; }catch(e){ this.pmdSvc=null; this.pmd=false; }
+    if(this.pmd) log(this.device.name||'Banda','tiene electrocardiograma (Polar PMD)');
+    if(this.ecgCb){ const cb=this.ecgCb; this.ecgStart(cb).catch(e=>log('ECG: no se pudo retomar:',e.message)); }
+    this.status='Conectado'; this.retry=0; this.reconnecting=false; log(label(this),'conectada'+(this.battery!=null?' (batería '+this.battery+'%)':'')); render();
   }
-  Session.tick();
-  if (tab === "team") renderTeam();
-  if (tab === "bands") renderBands();
-  refreshSelectors();
-  Ecg.onState();
+  onHr(v){ const flags=v.getUint8(0); const hr=(flags&1)?v.getUint16(1,true):v.getUint8(1);
+    this.contact=(flags&4)?!!(flags&2):null;
+    if(flags&0x10){ let o=1+((flags&1)?2:1)+((flags&8)?2:0); while(o+1<v.byteLength){ pushRR(this,v.getUint16(o,true)/1024*1000); o+=2; } }
+    feedHr(this,hr); }
+  async ecgStart(cb){
+    if(!this.pmdSvc) throw new Error('esta banda no manda electrocardiograma');
+    this.ecgCb=cb; this.ecgWarn=false;
+    const cp=await this.pmdSvc.getCharacteristic(PMD_CP), dt=await this.pmdSvc.getCharacteristic(PMD_D);
+    if(this.cp!==cp){ this.cp=cp; cp.addEventListener('characteristicvaluechanged',e=>{ const v=e.target.value, u=new Uint8Array(v.buffer,v.byteOffset,v.byteLength);
+      if(u[0]===0xF0&&u[1]===0x02){ if(u[3]===0) log('ECG: la banda empezó a transmitir'); else log('ECG: la banda rechazó el inicio (código '+u[3]+')'+(u[3]===6?': ya estaba transmitiendo':'')); } }); }
+    if(this.dt!==dt){ this.dt=dt; dt.addEventListener('characteristicvaluechanged',e=>this.onPmd(e.target.value)); }
+    await cp.startNotifications(); await dt.startNotifications();
+    try{ await cp.writeValue(new Uint8Array([0x01,0x00])); }catch(e){} await wait(200);
+    await cp.writeValue(new Uint8Array([0x02,0x00,0x00,0x01,0x82,0x00,0x01,0x01,0x0E,0x00])); }
+  onPmd(v){ const u=new Uint8Array(v.buffer,v.byteOffset,v.byteLength); const out=parsePmdEcg(u);
+    if(!out){ if(!this.ecgWarn){ this.ecgWarn=true; log('ECG: llegó un paquete con otro formato',hex(u.slice(0,12))); } return; }
+    if(this.ecgCb) this.ecgCb(out); }
+  async ecgStop(){ this.ecgCb=null; try{ await this.cp.writeValue(new Uint8Array([0x03,0x00])); }catch(e){} try{ await this.dt.stopNotifications(); }catch(e){} }
+  onDisc(){ if(this.removed||this.reconnecting)return; this.reconnecting=true; this.status='Reconectando'; log(label(this),'se desconectó, reintentando'); render();
+    const attempt=()=>{ if(this.removed)return; try{this.device.gatt.disconnect()}catch(e){}
+      this.connect().catch(e=>{ log(label(this),'reconexión falló:',e.message); const w=Math.min(1000*2**this.retry,8000); this.retry++; setTimeout(attempt,w); }); };
+    setTimeout(attempt,800); }
+  remove(){this.removed=true;try{this.device.gatt.disconnect()}catch(e){}}
 }
-setInterval(pollState, 1000);
+async function addBandDev(dev){
+  if(bands.has('band:'+dev.id)){log('Esa banda ya está en la pantalla');return}
+  const b=new Band(dev); bands.set(b.key,b); render(); keepAwake();
+  try{ await b.connect(); }catch(e){ log((dev.name||'Banda'),'no se pudo conectar:',e.message); b.remove(); bands.delete(b.key); render(); } }
+async function addBand(){
+  if(!navigator.bluetooth){$('#noBle').hidden=false;log('Este navegador no tiene Bluetooth web');return}
+  try{ const dev=await navigator.bluetooth.requestDevice({filters:[{services:['heart_rate']}],optionalServices:['battery_service',PMD_S]}); log('Banda elegida:',dev.name||'(sin nombre)'); await addBandDev(dev); refreshSaved(); }
+  catch(e){ log('No se agregó la banda:',(e&&e.name)||'',(e&&e.message)||e); if(e&&e.name==='SecurityError'){$('#noBle').hidden=false;} } }
+async function savedDevices(){ try{ if(navigator.bluetooth&&navigator.bluetooth.getDevices) return await navigator.bluetooth.getDevices(); }catch(e){} return null; }
+async function refreshSaved(){ const devs=await savedDevices(); const btn=$('#btnSaved'); if(!devs||!devs.length){btn.hidden=true;return}
+  const pend=devs.filter(d=>!bands.has('band:'+d.id)).length; btn.hidden=false; btn.disabled=pend===0; btn.textContent=pend?'Conectar guardadas ('+pend+')':'Guardadas conectadas'; }
+async function connectSaved(){ const devs=await savedDevices(); if(!devs||!devs.length)return; const btn=$('#btnSaved'); btn.disabled=true; btn.textContent='Conectando…'; keepAwake();
+  const todo=devs.filter(d=>!bands.has('band:'+d.id));
+  await Promise.all(todo.map((dev,i)=>new Promise(res=>setTimeout(async()=>{ try{ await addBandDev(dev); }catch(e){} res(); },i*400))));
+  refreshSaved(); render(); }
 
-/* tabs */
-document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
-  tab = b.dataset.tab;
-  document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-selected", x === b));
-  document.querySelectorAll("main > section").forEach(s => s.hidden = s.id !== tab);
-  if (tab === "team") renderTeam();
-  if (tab === "bands") renderBands(true);
-  if (tab === "ecg") Ecg.resize();
-  if (tab === "hrv") Hrv.draw();
-}));
-
-/* =====================================================================
-   Sesión (tiempo en zona, TRIMP, exportes)
-   ===================================================================== */
-const Session = {
-  on:false, t0:0, last:0, rows:[], per:{},
-  start(){
-    this.on = true; this.t0 = Date.now(); this.last = 0; this.rows = []; this.per = {};
-    $("#sesBtn").textContent = "Detener sesión"; $("#sesBtn").className = "btn danger";
-    $("#sesCsv").disabled = $("#sesSum").disabled = true;
-    WakeLock.get();
-  },
-  stop(){
-    this.on = false;
-    $("#sesBtn").textContent = "Iniciar sesión"; $("#sesBtn").className = "btn primary";
-    $("#sesCsv").disabled = $("#sesSum").disabled = this.rows.length === 0;
-    WakeLock.release();
-  },
-  tick(){
-    if (!this.on) return;
-    const t = Math.floor((Date.now() - this.t0) / 1000);
-    $("#sesTimer").textContent = fmtT(t);
-    if (t === this.last) return;
-    const dt = Math.min(5, t - this.last); this.last = t;
-    for (const b of S.bands){
-      if (!b.conn || !b.hr) continue;
-      const p = this.per[b.mac] || (this.per[b.mac] = {name:label(b), mac:b.mac, hrmax:hrmaxOf(b), n:0, sum:0, max:0, z:[0,0,0,0,0,0]});
-      p.name = label(b); p.hrmax = hrmaxOf(b);
-      const pct = b.hr / p.hrmax * 100, z = zoneOf(pct);
-      p.n++; p.sum += b.hr; p.max = Math.max(p.max, b.hr); p.z[z] += dt;
-      this.rows.push([t, p.name, b.mac, b.hr, Math.round(pct), z]);
-    }
-  },
-  stats(mac){
-    const p = this.per[mac]; if (!p) return null;
-    const trimp = p.z.reduce((a, s, i) => a + s / 60 * i, 0);
-    return {avg: p.n ? Math.round(p.sum / p.n) : 0, max:p.max, z:p.z, trimp};
-  },
-  csv(){
-    const head = "segundo,jugador,mac,fc,pct_fcmax,zona\n";
-    download("TrakFC_sesion_" + stamp() + ".csv", head + this.rows.map(r => r.map(v => typeof v === "string" ? '"' + v.replace(/"/g, '""') + '"' : v).join(",")).join("\n"));
-  },
-  summary(){
-    let s = "jugador,mac,fc_max_ref,fc_media,fc_pico,min_z1,min_z2,min_z3,min_z4,min_z5,trimp_edwards\n";
-    for (const mac in this.per){
-      const p = this.per[mac], st = this.stats(mac);
-      s += ['"' + p.name.replace(/"/g,'""') + '"', mac, p.hrmax, st.avg, st.max, ...p.z.slice(1).map(x => (x/60).toFixed(1)), st.trimp.toFixed(1)].join(",") + "\n";
-    }
-    download("TrakFC_resumen_" + stamp() + ".csv", s);
-  }
-};
-$("#sesBtn").onclick = () => Session.on ? Session.stop() : Session.start();
-$("#sesCsv").onclick = () => Session.csv();
-$("#sesSum").onclick = () => Session.summary();
-
-const WakeLock = {
-  lock:null,
-  async get(){ try{ if ("wakeLock" in navigator) this.lock = await navigator.wakeLock.request("screen"); }catch(e){} },
-  release(){ try{ this.lock && this.lock.release(); }catch(e){} this.lock = null; }
-};
-
-/* =====================================================================
-   Vista Equipo
-   ===================================================================== */
-function sigBars(rssi){ const n = rssi > -60 ? 4 : rssi > -70 ? 3 : rssi > -80 ? 2 : 1; return '<span class="sig" title="' + rssi + ' dBm">' + [4,6,8,10].map((h,i) => '<i style="height:' + h + 'px" class="' + (i < n ? "on" : "") + '"></i>').join("") + "</span>"; }
-function batIcon(b){ if (b > 100) return ""; return '<span class="bat" title="' + b + ' %"><i style="width:' + Math.max(1, Math.round(b/100*13)) + 'px"></i></span>'; }
-
-function renderTeam(){
-  const g = $("#grid");
-  const list = S.bands.filter(b => b.conn || b.name);
-  if (!list.length){
-    g.innerHTML = '<div class="empty" style="grid-column:1/-1"><strong>' + (online ? "Todavía no hay bandas conectadas" : "Sin conexión con la placa") + "</strong>" +
-      (online ? "Mojá los electrodos, ponete la banda y esperá unos segundos." : "Conectá el iPad a la red WiFi TrakFC y volvé a esta página.") + "</div>";
-    return;
-  }
-  const sort = $("#sortSel").value;
-  list.sort((a,b) => {
-    if (sort === "name") return label(a).localeCompare(label(b), "es", {numeric:true});
-    if (sort === "hr") return (b.hr||0) - (a.hr||0);
-    return (b.hr/hrmaxOf(b)||0) - (a.hr/hrmaxOf(a)||0);
-  });
-  g.innerHTML = list.map(b => {
-    const live = b.conn && b.hr > 0;
-    const pct = live ? Math.round(b.hr / hrmaxOf(b) * 100) : 0;
-    const z = live ? zoneOf(pct) : -1;
-    const cls = !live ? "off" : z === 0 ? "z0" : "";
-    const bg = live ? "background:var(" + ZC[z] + ")" : "";
-    const st = Session.stats(b.mac);
-    let zbar = "";
-    if (st){ const tot = st.z.reduce((a,c) => a + c, 0) || 1; zbar = st.z.map((s,i) => i ? '<i style="width:' + (s/tot*100) + '%;background:var(' + ZC[i] + ');filter:brightness(' + (live ? 1.25 : 1) + ')"></i>' : "").join(""); }
-    let warn = "";
-    if (b.conn && b.contact === 0) warn = "Sin contacto con la piel";
-    else if (!b.conn) warn = "Desconectada";
-    else if (!b.hrmax) warn = "Falta FC máx (uso " + DEFAULT_HRMAX + ")";
-    return '<div class="tile ' + cls + '" style="' + bg + '">' +
-      '<div class="nm">' + esc(label(b)) + "</div>" +
-      '<div class="meta">' + (b.h10 ? "H10 " : "") + sigBars(b.rssi) + batIcon(b.bat) + "</div>" +
-      '<div class="hr">' + (live ? b.hr : "--") + "<small>lpm</small></div>" +
-      '<div class="pct">' + (live ? pct + " %" + (z > 0 ? " · Z" + z : "") : "&nbsp;") + "</div>" +
-      (st ? '<div class="zbar">' + zbar + "</div>" : "") +
-      '<div class="foot">' + (st ? "<span>Media " + st.avg + " · Pico " + st.max + "</span><span>TRIMP " + st.trimp.toFixed(0) + "</span>" : '<span class="warn">' + warn + "</span>") + "</div>" +
-      (st && warn ? '<div class="warn">' + warn + "</div>" : "") +
-      "</div>";
-  }).join("");
+/* ---------- Bandas ANT+ con antena USB (Garmin / Dynastream) ---------- */
+class AntBand{
+  constructor(num){this.num=num;this.key='ant:'+num;this.kind='ANT+';this.status='Conectado';initBand(this);}
+  bandKey(){return 'FC:ANT '+this.num}
+  defLabel(){return 'Banda ANT+ '+this.num}
+  remove(){this.removed=true; antIgnore.add(this.num);}
 }
-$("#sortSel").onchange = renderTeam;
-
-/* =====================================================================
-   Vista Bandas
-   ===================================================================== */
-let editing = false;
-function renderBands(force){
-  const conn = S.bands.filter(b => b.conn).length;
-  $("#connInfo").textContent = "Conectadas " + conn + " de " + S.maxConn + " posibles · " + S.bands.length + " vistas";
-  $("#onlyAsg").checked = !!S.onlyAssigned;
-  const mw = $("#maxWarn");
-  mw.hidden = S.maxConn >= 9;
-  mw.textContent = "La placa acepta solo " + S.maxConn + " bandas. Para llegar a 9, en nimconfig.h de NimBLE-Arduino poné #define CONFIG_BT_NIMBLE_MAX_CONNECTIONS 9 y volvé a cargar el programa.";
-  if (editing && !force){
-    for (const b of S.bands){ const c = document.getElementById("hr_" + b.id); if (c) c.textContent = b.conn && b.hr ? b.hr : "—"; }
-    return;
+const antIgnore=new Set();
+const ANT_KEY=[0xB9,0xA5,0x21,0xFB,0xBD,0x72,0xC3,0x45];
+class AntStick{
+  async open(){
+    this.dev=await navigator.usb.requestDevice({filters:[{vendorId:0x0fcf}]});
+    await this.dev.open(); if(!this.dev.configuration) await this.dev.selectConfiguration(1);
+    const itf=this.dev.configuration.interfaces[0]; await this.dev.claimInterface(itf.interfaceNumber);
+    const eps=itf.alternate.endpoints; this.epIn=eps.find(e=>e.direction==='in').endpointNumber; this.epOut=eps.find(e=>e.direction==='out').endpointNumber;
+    this.open_=true; this.rx=[]; this.msgs=0; this.seen=new Map(); this.readLoop();
+    log('Antena abierta:',this.dev.productName||'ANT+');
+    await this.startScan();
+    this.watch=setTimeout(()=>{ if(this.open_&&this.msgs===0){ log('ANT+: sin señales en modo escaneo; paso a escuchar banda por banda'); this.startChannels(); } },12000);
+    this.diag=setInterval(()=>{ if(this.open_) log('ANT+: señales',this.msgs,'· vistos:',[...this.seen.entries()].map(([k,v])=>k+' (tipo '+v+')').join(', ')||'ninguno'); },15000);
   }
-  const rows = S.bands.slice().sort((a,b) => (b.conn - a.conn) || (b.rssi - a.rssi));
-  $("#bandRows").innerHTML = rows.length ? rows.map(b =>
-    "<tr>" +
-    '<td><span class="dot ' + (b.conn ? "on" : "") + '" title="' + (b.conn ? "Conectada" : "No conectada") + '"></span></td>' +
-    "<td><strong>" + esc(b.dev || "Sin nombre") + "</strong><br><span class=\"hint\">" + b.mac + (b.h10 ? " · ECG" : "") + (b.conn ? (b.rr ? " · RR" : " · sin RR") : "") + "</span></td>" +
-    '<td class="n">' + b.rssi + " dBm</td>" +
-    '<td class="n">' + (b.bat <= 100 ? b.bat + " %" : "—") + "</td>" +
-    '<td class="n" id="hr_' + b.id + '">' + (b.conn && b.hr ? b.hr : "—") + "</td>" +
-    '<td><input type="text" maxlength="24" value="' + esc(b.name) + '" placeholder="Nombre" data-mac="' + b.mac + '" class="in-name"></td>' +
-    '<td><input type="number" min="120" max="230" value="' + (b.hrmax || "") + '" placeholder="' + DEFAULT_HRMAX + '" data-mac="' + b.mac + '" class="in-max"></td>' +
-    '<td style="white-space:nowrap"><button class="btn" data-save="' + b.mac + '">Guardar</button> ' +
-    (b.conn ? '<button class="btn" data-disc="' + b.id + '">Soltar</button>' : "") + "</td>" +
-    "</tr>").join("")
-    : '<tr><td colspan="8" class="empty"><strong>No se ve ninguna banda</strong>Mojá los electrodos y ponete la banda cerca de la placa.</td></tr>';
+  async startScan(){ const w=ms=>new Promise(r=>setTimeout(r,ms)); this.mode='scan';
+    await this.send(0x4A,[0]); await w(700); await this.send(0x4D,[0,0x54]); await w(120);
+    await this.send(0x46,[0,...ANT_KEY]); await w(100); await this.send(0x42,[0,0,0]); await w(100);
+    await this.send(0x51,[0,0,0,0,0]); await w(100); await this.send(0x45,[0,57]); await w(100);
+    await this.send(0x66,[0,1]); await w(100); await this.send(0x5B,[0]); await w(100);
+    log('ANT+: escuchando todas las bandas a la vez'); }
+  async startChannels(){ const w=ms=>new Promise(r=>setTimeout(r,ms)); this.mode='channels'; const n=Math.max(1,Math.min(8,this.maxCh||8));
+    await this.send(0x4A,[0]); await w(700); await this.send(0x46,[0,...ANT_KEY]); await w(100); await this.send(0x66,[0,1]); await w(100);
+    this.chFree=[]; for(let c=0;c<n;c++)this.chFree.push(c); this.openNextChannel(); }
+  async openNextChannel(){
+    if(!this.chFree||!this.chFree.length){ log('ANT+: no quedan canales libres'); return; }
+    const c=this.chFree.shift(), w=ms=>new Promise(r=>setTimeout(r,ms)); this.searching=c;
+    await this.send(0x42,[c,0,0]); await w(80); await this.send(0x51,[c,0,0,120,0]); await w(80);
+    await this.send(0x43,[c,0x86,0x1F]); await w(80); await this.send(0x45,[c,57]); await w(80); await this.send(0x44,[c,0xFF]); await w(80);
+    if(this.paired&&this.paired.size){ let i=0; for(const num of [...this.paired].slice(-4)){ await this.send(0x59,[c,num&255,num>>8,120,0,i++]); await w(60); } await this.send(0x5A,[c,i,1]); await w(60); }
+    await this.send(0x4B,[c]); log('ANT+: canal',c,'buscando banda…'); }
+  async send(id,data){ const b=[0xA4,data.length,id,...data]; let cs=0; for(const x of b)cs^=x; b.push(cs); await this.dev.transferOut(this.epOut,new Uint8Array(b)); }
+  async readLoop(){ while(this.open_){ try{ const r=await this.dev.transferIn(this.epIn,64); if(r.data){ for(let i=0;i<r.data.byteLength;i++)this.rx.push(r.data.getUint8(i)); this.parse(); } }
+    catch(e){ if(this.open_){ log('Antena ANT+ desconectada:',e.message); this.open_=false; updateAntButton(); } } } }
+  parse(){ const q=this.rx;
+    while(q.length>=4){
+      if(q[0]!==0xA4){ q.shift(); continue; }
+      const len=q[1]; if(q.length<len+4)break;
+      const msg=q.splice(0,len+4), id=msg[2], d=msg.slice(3,3+len);
+      if(id===0x4E||id===0x4F||id===0x50){ this.msgs++;
+        if(d.length>=13&&(d[9]&0x80)){ const num=d[10]|(d[11]<<8), type=d[12]&0x7F;
+          if(!this.seen.has(num)){ this.seen.set(num,type); log('ANT+: dispositivo',num,'tipo',type,type===120?'(banda de FC)':'(no es banda)'); }
+          if(type===120){
+            if(this.mode==='channels'){ this.paired=this.paired||new Set(); if(!this.paired.has(num)){ this.paired.add(num); if(this.searching===d[0]){ this.searching=null; this.openNextChannel(); } } }
+            if(!antIgnore.has(num)) antHr(num,d[8],d[5]|(d[6]<<8),d[7]); }
+        } else if(!this.warnNoExt){ this.warnNoExt=true; log('ANT+: llegan señales sin número de dispositivo'); }
+      } else if(id===0x40){ const [,mid,code]=d; if(mid!==1&&code!==0) log('ANT+: la antena rechazó la orden 0x'+mid.toString(16)+' (código '+code+')'); }
+      else if(id===0x54){ this.maxCh=d[0]; log('ANT+: la antena tiene',d[0],'canales'); }
+    } }
+  async close(){ this.open_=false; clearTimeout(this.watch); clearInterval(this.diag); try{ await this.dev.close(); }catch(e){} }
 }
-$("#bandRows").addEventListener("focusin", () => editing = true);
-$("#bandRows").addEventListener("focusout", () => setTimeout(() => { if (!$("#bandRows").contains(document.activeElement)) editing = false; }, 50));
-$("#bandRows").addEventListener("click", async e => {
-  const mac = e.target.dataset.save, disc = e.target.dataset.disc;
-  if (mac){
-    const name = document.querySelector('.in-name[data-mac="' + mac + '"]').value.trim();
-    const max = document.querySelector('.in-max[data-mac="' + mac + '"]').value || 0;
-    await api("/api/assign?mac=" + encodeURIComponent(mac) + "&name=" + encodeURIComponent(name) + "&hrmax=" + max);
-    e.target.textContent = "Guardado";
-    setTimeout(() => { editing = false; pollState().then(() => renderBands(true)); }, 600);
-  }
-  if (disc !== undefined) await api("/api/disconnect?id=" + disc);
-});
-$("#onlyAsg").onchange = e => api("/api/settings?onlyAssigned=" + (e.target.checked ? 1 : 0));
+let antStick=null;
+function antHr(num,hr,evt,cnt){ let b=bands.get('ant:'+num); if(!b){ b=new AntBand(num); bands.set(b.key,b); log('Banda ANT+ detectada:',num); }
+  if(cnt!=null){ if(b.pc!=null&&cnt!==b.pc&&((cnt-b.pc)&255)===1) pushRR(b,((evt-b.pe)&0xFFFF)/1024*1000); if(b.pc==null||cnt!==b.pc){ b.pc=cnt; b.pe=evt; } }
+  feedHr(b,hr); }
+function updateAntButton(){ const btn=$('#btnAnt'); if(!navigator.usb){btn.hidden=true;return} btn.hidden=false; const on=!!(antStick&&antStick.open_); btn.textContent=on?'Antena ANT+ activa':'+ Antena ANT+'; btn.disabled=on; }
+async function openAnt(){
+  try{ antStick=new AntStick(); await antStick.open(); keepAwake(); }
+  catch(e){ log('No se pudo abrir la antena ANT+:',(e&&e.name)||'',(e&&e.message)||e); if(e&&/access|claim|Security/i.test(String(e.message)+e.name)) log('En Windows la antena necesita el controlador WinUSB (Zadig). Cerrá otros programas que la usen.'); antStick=null; }
+  updateAntButton(); }
 
-/* selectores de ECG y VFC */
-function fillSel(sel, list, keep){
-  const cur = sel.value;
-  const html = list.map(b => '<option value="' + b.id + '">' + esc(label(b)) + "</option>").join("") || '<option value="">' + keep + "</option>";
-  if (sel.dataset.h !== html){ sel.innerHTML = html; sel.dataset.h = html; if ([...sel.options].some(o => o.value === cur)) sel.value = cur; }
+
+/* ---------- Placa TrakFC (ESP32 con antena: recibe hasta 9 bandas y las manda por WiFi) ---------- */
+const PLACA_IP='192.168.4.1';
+const onPlaca=location.hostname===PLACA_IP||/[?&]placa\b/.test(location.search);
+const placa={on:false,base:onPlaca?'':'http://'+PLACA_IP,fail:0,busy:false,st:null,ecgErr:0};
+const placaIgnore=new Set();
+async function placaGet(p){ const c=new AbortController(), t=setTimeout(()=>c.abort(),4000);
+  try{ const r=await fetch(placa.base+p,{cache:'no-store',signal:c.signal}); if(!r.ok) throw new Error('HTTP '+r.status); return await r.json(); } finally{ clearTimeout(t); } }
+class PlacaBand{
+  constructor(d){this.id=d.id;this.mac=d.mac;this.dev=d.dev||'';this.num=d.num||'';this.key='esp:'+d.mac;this.kind='Placa';this.pmd=!!d.h10;this.status='Conectando';initBand(this);}
+  bandKey(){ return /^Polar /.test(this.dev)?'FC:'+this.dev:'FC:'+(this.dev||'Banda')+' · '+this.mac.slice(-5).toUpperCase(); }
+  defLabel(){ return this.num?'Banda '+this.num:(this.dev||'Banda')+' · '+this.mac.slice(-5).toUpperCase(); }
+  async ecgStart(cb){ this.ecgCb=cb; this.ecgSeq=placa.st?placa.st.ecg.seq:0; placa.ecgErr=0; await placaGet('/api/ecg/start?id='+this.id);
+    clearInterval(this.ecgT); this.ecgT=setInterval(()=>this.ecgPoll(),250); log('ECG por la placa: iniciando en',label(this)); }
+  async ecgPoll(){ if(this.ecgBusy)return; this.ecgBusy=true;
+    try{ const r=await placaGet('/api/ecg?since='+this.ecgSeq); if(r.seq<this.ecgSeq) this.ecgSeq=r.from; this.ecgSeq=r.seq; if(r.s.length&&this.ecgCb) this.ecgCb(r.s); }catch(e){}
+    this.ecgBusy=false; }
+  async ecgStop(){ this.ecgCb=null; clearInterval(this.ecgT); try{ await placaGet('/api/ecg/stop'); }catch(e){} }
+  remove(){ this.removed=true; placaIgnore.add(this.mac); placaGet('/api/disconnect?id='+this.id).catch(()=>{}); }
 }
-function refreshSelectors(){
-  if (!Ecg.running) fillSel($("#ecgSel"), S.bands.filter(b => b.conn && b.h10), "No hay ninguna H10 conectada");
-  if (!Hrv.running) fillSel($("#hrvSel"), S.bands.filter(b => b.conn), "No hay bandas conectadas");
-  if (!Hrv.running){
-    const b = S.bands.find(x => String(x.id) === $("#hrvSel").value);
-    const w = $("#hrvWarn");
-    w.hidden = !(b && b.conn && b.hr && !b.rr);
-    w.textContent = "Esta banda manda la FC pero no los intervalos RR, así que no sirve para VFC. La Polar H10 sí los manda.";
-  }
+const ECG_ERR={3:'la banda no soporta ECG',10:'MTU bajo: reiniciá la placa',12:'estado inválido',13:'la banda está cargando',100:'la banda no tiene ECG',101:'no se encontró el canal de ECG',102:'no se pudo enviar el comando',103:'la banda dejó de mandar datos'};
+function placaPush(b){ // guarda en la placa el nombre y la FC máx, para que cualquier iPad los vea
+  if(!b||b.kind!=='Placa')return; const l=names[b.bandKey()]||'', mx=l&&pcfg[l]&&pcfg[l].hrmax||0;
+  placaGet('/api/assign?mac='+encodeURIComponent(b.mac)+'&name='+encodeURIComponent(l)+'&hrmax='+mx).catch(()=>{}); }
+async function placaPoll(){
+  if(!placa.on||placa.busy)return; placa.busy=true;
+  try{ const st=await placaGet('/api/state'); placa.st=st; if(placa.fail>=3) log('Placa: conexión recuperada'); placa.fail=0;
+    for(const d of st.bands){ const k='esp:'+d.mac; if(placaIgnore.has(d.mac))continue; let b=bands.get(k);
+      if(!b){ if(!d.conn)continue; b=new PlacaBand(d); bands.set(k,b);
+        if(!names[b.bandKey()]&&d.name){ names[b.bandKey()]=d.name; store.set('traklive.names',names); }
+        const l=label(b); if(d.hrmax>0&&!(pcfg[l]&&pcfg[l].hrmax)){ pcfg[l]=Object.assign({},pcfg[l],{hrmax:d.hrmax}); store.set('traklive.player',pcfg); }
+        log('Placa: banda',l,'('+(d.dev||d.mac)+')'); keepAwake(); }
+      b.id=d.id; b.num=d.num||''; if(d.dev) b.dev=d.dev; b.pmd=!!d.h10; if(d.bat<=100) b.battery=d.bat; b.rssi=d.rssi; b.contact=d.contact===2?null:!!d.contact;
+      b.status=d.conn?'Conectado':'Reconectando';
+      if(Array.isArray(d.rrLast)&&d.rrSeq!=null){ if(b.rrSeq==null||d.rrSeq<b.rrSeq) b.rrSeq=d.rrSeq;
+        const n=Math.min(d.rrLast.length,d.rrSeq-b.rrSeq); for(const ms of d.rrLast.slice(d.rrLast.length-n)) pushRR(b,ms); b.rrSeq=d.rrSeq; }
+      if(d.conn&&d.hr>0&&d.age<3000) feedHr(b,d.hr);
+    }
+    if(st.ecg&&st.ecg.status===3&&ecg.live&&ecg.dev&&ecg.dev.kind==='Placa'&&placa.ecgErr!==st.ecg.err){ placa.ecgErr=st.ecg.err; log('ECG por la placa: error',ECG_ERR[st.ecg.err]||('código '+st.ecg.err)); toast('ECG: '+(ECG_ERR[st.ecg.err]||'error '+st.ecg.err),true); }
+  }catch(e){ placa.fail++; if(placa.fail===3){ log('Placa: sin respuesta. Revisá que este equipo esté en la WiFi TrakFC.'); for(const b of bands.values()) if(b.kind==='Placa') b.status='Reconectando'; render(); } }
+  placa.busy=false; updatePlacaButton(); }
+function updatePlacaButton(){ const btn=$('#btnPlaca'); if(!btn)return;
+  if(!placa.on){ btn.textContent='+ Placa TrakFC'; btn.classList.remove('on'); return; }
+  const n=placa.st?placa.st.bands.filter(d=>d.conn).length:0;
+  btn.textContent=placa.fail>=3?'Placa sin señal':'Placa · '+n+(n===1?' banda':' bandas'); btn.classList.toggle('on',placa.fail<3); }
+function startPlaca(){
+  if(placa.on){ openPlacaInfo(); return; }
+  if(location.protocol==='https:'&&!onPlaca){ toast('Para usar la placa: conectate a la WiFi TrakFC y abrí http://192.168.4.1',true); log('Placa: desde una página https el navegador no deja hablar con la placa. Abrí http://192.168.4.1 estando en la WiFi TrakFC.'); return; }
+  placa.on=true; log('Placa: buscando en',placa.base||location.host); placaPoll(); setInterval(placaPoll,1000); updatePlacaButton(); }
+function openPlacaInfo(){ const st=placa.st; if(!st){ toast('La placa todavía no respondió'); return; }
+  const n=st.bands.filter(d=>d.conn).length; toast('Placa: '+n+' de '+st.maxConn+' bandas conectadas · '+st.bands.length+' vistas'); }
+
+/* ---------- Demo ---------- */
+const POS=['Pilar izq.','Hooker','Pilar der.','2ª línea','2ª línea','Ala','Ala','Octavo','Medio scrum','Apertura','Wing','Centro','Centro','Wing','Fullback','Suplente','Suplente'];
+class FakeBand{
+  constructor(i){this.i=i;this.key='demo'+i;this.kind='Demo';this.pmd=i===0;this.contact=true;this.status='Conectado';this.battery=60+((i*7)%40);initBand(this);this.cur=80+Math.random()*15;this.ph=Math.random()*6;this.fit=0.9+(i%5)*0.04;this.timer=null;}
+  bandKey(){return 'FC:DEMO '+(this.i+1)}
+  defLabel(){return (this.i+1)+' · '+POS[this.i]}
+  connect(){ const tick=()=>{ if(this.removed)return; const t=Date.now()/1000;
+      const work=this.i>=15?0.15:0.55+0.35*Math.sin(t/40+this.ph)+(Math.random()<.04?0.5:0);
+      const rest=hrv.state==='running'; const tgt=rest?56+(this.i%6)*3:hrr.active?92+(this.i%5)*6:(78+work*110)*this.fit; this.cur+=(tgt-this.cur)*0.18+(Math.random()-.5)*2.5;
+      if(!(this.i===6&&Math.floor(t/25)%4===3)){ feedHr(this,Math.round(Math.max(55,Math.min(204,this.cur))));
+        let acc=0; while(acc<1000){ const rr=60000/this.cur*(1+(rest?0.07:0.03)*Math.sin(t*1.7+this.ph+acc/400)+(Math.random()-.5)*(rest?0.05:0.02)); pushRR(this,rr); acc+=rr; } }
+      this.timer=setTimeout(tick,1000); };
+    setTimeout(tick,200+this.i*50); }
+  async ecgStart(cb){ this.ecgCb=cb; let n=0, ph=0; clearInterval(this.ecgT); this.ecgT=setInterval(()=>{ const out=[], per=60/(this.hr||70); for(let k=0;k<73;k++){ ph=(ph+1/FS/per)%1; out.push(synthEcg(n++/FS,ph*per,per)); } if(this.ecgCb)this.ecgCb(out); },561); }
+  async ecgStop(){ this.ecgCb=null; clearInterval(this.ecgT); }
+  remove(){this.removed=true;clearTimeout(this.timer);clearInterval(this.ecgT)}
 }
+function synthEcg(t,tb,per){ const k=Math.min(1,per/0.8), g=(a,m,w)=>a*Math.exp(-((tb-m*k)**2)/(2*w*w));
+  const mv=g(0.14,0.16,0.022)+g(-0.12,0.245,0.008)+g(1.25,0.27,0.0095)+g(-0.28,0.292,0.009)+g(0.32,0.52,0.045)+0.04*Math.sin(t*1.6);
+  return Math.round(mv*1000+(Math.random()-.5)*24); }
+function demo(){
+  if(demoMode){ for(const [k,b] of bands) if(k.startsWith('demo')){ b.remove(); bands.delete(k); } demoMode=false; $('#btnDemo').textContent='Demo'; render(); return; }
+  demoMode=true; $('#btnDemo').textContent='Quitar demo';
+  for(let i=0;i<17;i++){ const b=new FakeBand(i); bands.set(b.key,b); b.connect(); }
+  render(); }
 
-/* =====================================================================
-   ECG (Polar H10)
-   ===================================================================== */
-const ERR = {1:"código inválido",2:"tipo de medición inválido",3:"la banda no soporta ECG",4:"largo inválido",5:"parámetro inválido",7:"resolución inválida",8:"frecuencia inválida",10:"MTU muy bajo: reiniciá la placa",12:"estado inválido",13:"la banda está cargando",100:"la banda no tiene servicio PMD",101:"no se encontró el canal de ECG",102:"no se pudo enviar el comando",103:"la banda dejó de mandar datos"};
-const Ecg = {
-  running:false, mode:"", seq:0, raw:[], flt:[], t0:0, hp:{x:0,y:0,init:false}, timer:null, lastBand:"", W:0,
-  fs:130, win:6,
-  resize(){
-    const cv = $("#ecgCv"), r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-    if (!r.width) return;
-    cv.width = Math.round(r.width * dpr); cv.height = Math.round(300 * dpr);
-    cv.style.height = "300px";
-    this.W = r.width; this.draw();
-  },
-  filt(v){                       // pasa-altos 0.5 Hz para sacar la deriva de línea de base
-    const h = this.hp;
-    if (!h.init){ h.x = v; h.y = 0; h.init = true; return 0; }
-    const y = 0.976 * (h.y + v - h.x); h.x = v; h.y = y; return y;
-  },
-  async start(mode){
-    const id = $("#ecgSel").value; if (id === "") return;
-    this.mode = mode; this.raw = []; this.flt = []; this.hp.init = false; this.running = true;
-    this.lastBand = $("#ecgSel").selectedOptions[0].textContent;
-    $("#ecgStats").hidden = true; $("#stripWrap").hidden = true;
-    this.ui(); this.msg("Iniciando ECG… (tarda 2–3 s)");
-    try{ await api("/api/ecg/start?id=" + id); }catch(e){ this.msg("No se pudo hablar con la placa", true); this.running = false; this.ui(); return; }
-    this.seq = S.ecg ? S.ecg.seq : 0; this.t0 = 0;
-    WakeLock.get();
-    clearInterval(this.timer); this.timer = setInterval(() => this.poll(), 250);
-  },
-  async stop(finished){
-    clearInterval(this.timer); this.running = false;
-    try{ await api("/api/ecg/stop"); }catch(e){}
-    WakeLock.release();
-    this.ui();
-    if (this.flt.length > this.fs * 5) this.analyze();
-    if (!finished) this.msg(this.flt.length ? "Registro detenido · " + (this.flt.length / this.fs).toFixed(0) + " s" : "Detenido");
-  },
-  async poll(){
-    let r; try{ r = await api("/api/ecg?since=" + this.seq); }catch(e){ return; }
-    if (r.seq < this.seq) this.seq = r.from;
-    this.seq = r.seq;
-    if (r.s.length){
-      if (!this.t0) this.t0 = Date.now();
-      for (const v of r.s){ this.raw.push(v); this.flt.push(this.filt(v)); }
-      const secs = this.flt.length / this.fs;
-      if (this.mode === "30"){
-        this.msg("Registrando " + this.lastBand + "… " + Math.max(0, 30 - secs).toFixed(0) + " s");
-        if (secs >= 30){ this.flt.length = this.raw.length = 30 * this.fs; await this.stop(true); this.msg("Registro de 30 s listo"); }
-      } else {
-        this.msg("En continuo · " + this.lastBand + " · " + fmtT(secs));
-        if (this.raw.length > this.fs * 600){ this.raw.splice(0, this.fs * 60); this.flt.splice(0, this.fs * 60); }
-      }
-      this.draw();
-    }
-  },
-  onState(){
-    if (!this.running || !S.ecg) return;
-    if (S.ecg.status === 3) { this.msg("Error de ECG: " + (ERR[S.ecg.err] || "código " + S.ecg.err), true); this.stop(true); }
-  },
-  msg(t, err){ const e = $("#ecgStatus"); e.textContent = t; e.className = "status" + (err ? " err" : ""); },
-  ui(){
-    $("#ecg30").disabled = $("#ecgLive").disabled = this.running;
-    $("#ecgStopBtn").disabled = !this.running;
-    $("#ecgCsv").disabled = this.running || !this.raw.length;
-    $("#ecgSel").disabled = this.running;
-  },
-  paper(ctx, w, h, pxs, pxmv){
-    ctx.fillStyle = css("--paper"); ctx.fillRect(0, 0, w, h);
-    const small = pxs * 0.04, big = pxs * 0.2;
-    ctx.lineWidth = 0.5; ctx.strokeStyle = css("--grid1"); ctx.beginPath();
-    for (let x = 0; x < w; x += small){ ctx.moveTo(x, 0); ctx.lineTo(x, h); }
-    for (let y = h/2 % (pxmv*0.1); y < h; y += pxmv * 0.1){ ctx.moveTo(0, y); ctx.lineTo(w, y); }
-    ctx.stroke();
-    ctx.lineWidth = 1; ctx.strokeStyle = css("--grid2"); ctx.beginPath();
-    for (let x = 0; x < w; x += big){ ctx.moveTo(x, 0); ctx.lineTo(x, h); }
-    for (let y = h/2 % (pxmv*0.5); y < h; y += pxmv * 0.5){ ctx.moveTo(0, y); ctx.lineTo(w, y); }
-    ctx.stroke();
-  },
-  trace(ctx, data, i0, i1, x0, y0, pxs, pxmv){
-    ctx.strokeStyle = css("--trace"); ctx.lineWidth = 1.6; ctx.lineJoin = "round"; ctx.beginPath();
-    for (let i = i0; i < i1; i++){
-      const x = x0 + (i - i0) / this.fs * pxs, y = y0 - data[i] / 1000 * pxmv;
-      i === i0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  },
-  draw(){
-    const cv = $("#ecgCv"); if (!cv.width) return;
-    const dpr = window.devicePixelRatio || 1, ctx = cv.getContext("2d");
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const w = this.W, h = 300, gain = +$("#ecgGain").value;
-    const pxs = Math.max(w / this.win, 80);           // px por segundo (25 mm/s)
-    const pxmv = pxs * 0.4 * gain;                    // 10 mm/mV
-    this.paper(ctx, w, h, pxs, pxmv);
-    const n = Math.floor(w / pxs * this.fs);
-    const i1 = this.flt.length, i0 = Math.max(0, i1 - n);
-    if (i1 > 1) this.trace(ctx, this.flt, i0, i1, 0, h/2, pxs, pxmv);
-    else { ctx.fillStyle = "#9B6B6B"; ctx.font = "15px " + css("--txt"); ctx.fillText(this.running ? "Esperando señal…" : "Sin registro", 16, 28); }
-  },
-  rpeaks(x){                                         // detector simple tipo Pan-Tompkins
-    const fs = this.fs, n = x.length, y = new Float32Array(n), win = Math.round(0.12 * fs);
-    let acc = 0;
-    const d2 = new Float32Array(n);
-    for (let i = 2; i < n; i++){ const d = x[i] - x[i-2]; d2[i] = d * d; }
-    for (let i = 0; i < n; i++){ acc += d2[i]; if (i >= win) acc -= d2[i - win]; y[i] = acc; }
-    const sorted = Array.from(y).sort((a,b) => a - b), thr = sorted[Math.floor(n * 0.98)] * 0.3;
-    const peaks = [], refr = Math.round(0.3 * fs);
-    let i = 0;
-    while (i < n){
-      if (y[i] > thr){
-        let j = i; while (j < n && y[j] > thr) j++;
-        let best = -1, bv = -Infinity;
-        for (let k = Math.max(0, i - win); k < Math.min(n, j); k++) if (x[k] > bv){ bv = x[k]; best = k; }
-        if (best >= 0 && (!peaks.length || best - peaks[peaks.length-1] > refr)) peaks.push(best);
-        i = j + 1;
-      } else i++;
-    }
-    return peaks;
-  },
-  analyze(){
-    const x = this.flt, peaks = this.rpeaks(x), fs = this.fs;
-    const rr = []; for (let i = 1; i < peaks.length; i++) rr.push((peaks[i] - peaks[i-1]) / fs * 1000);
-    const mean = rr.length ? rr.reduce((a,b) => a + b, 0) / rr.length : 0;
-    const amp = peaks.length ? peaks.reduce((a,p) => a + x[p], 0) / peaks.length : 0;
-    const box = $("#ecgStats"); box.hidden = false;
-    box.innerHTML = [
-      ["FC media", mean ? Math.round(60000 / mean) : "—", "lpm"],
-      ["Latidos", peaks.length, ""],
-      ["RR medio", mean ? Math.round(mean) : "—", "ms"],
-      ["RR mín / máx", rr.length ? Math.round(Math.min(...rr)) + " / " + Math.round(Math.max(...rr)) : "—", "ms"],
-      ["Amplitud R", (amp / 1000).toFixed(2), "mV"],
-      ["Duración", (x.length / fs).toFixed(0), "s"]
-    ].map(s => '<div class="stat"><div class="v">' + s[1] + "<small>" + s[2] + '</small></div><div class="k">' + s[0] + "</div></div>").join("");
-    this.peaks = peaks;
-    this.strip();
-  },
-  strip(){
-    const wrap = $("#stripWrap"); wrap.hidden = false;
-    const cv = $("#stripCv"), w = cv.getBoundingClientRect().width || this.W, dpr = window.devicePixelRatio || 1;
-    const rowSec = 10, rows = Math.ceil(this.flt.length / this.fs / rowSec), gain = +$("#ecgGain").value;
-    const pxs = w / rowSec, pxmv = pxs * 0.4 * gain, rowH = Math.max(150, pxmv * 2.2), h = rows * rowH;
-    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.height = h + "px";
-    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this.paper(ctx, w, h, pxs, pxmv);
-    for (let r = 0; r < rows; r++){
-      const i0 = r * rowSec * this.fs, i1 = Math.min(this.flt.length, i0 + rowSec * this.fs), y0 = r * rowH + rowH * 0.6;
-      this.trace(ctx, this.flt, i0, i1, 0, y0, pxs, pxmv);
-      ctx.fillStyle = "#9B6B6B"; ctx.font = "12px " + css("--txt"); ctx.fillText((r * rowSec) + "–" + ((r + 1) * rowSec) + " s", 6, r * rowH + 14);
-      ctx.fillStyle = "#DD3B34";
-      for (const p of (this.peaks || [])) if (p >= i0 && p < i1){
-        const x = (p - i0) / this.fs * pxs; ctx.beginPath(); ctx.arc(x, r * rowH + 22, 3, 0, 7); ctx.fill();
-      }
-    }
-  },
-  csv(){
-    let s = "muestra,tiempo_s,ecg_uV,ecg_filtrado_uV\n";
-    for (let i = 0; i < this.raw.length; i++) s += i + "," + (i / this.fs).toFixed(4) + "," + this.raw[i] + "," + Math.round(this.flt[i]) + "\n";
-    download("TrakFC_ECG_" + this.lastBand.replace(/\W+/g, "_") + "_" + stamp() + ".csv", s);
-  }
-};
-$("#ecg30").onclick = () => Ecg.start("30");
-$("#ecgLive").onclick = () => Ecg.start("live");
-$("#ecgStopBtn").onclick = () => Ecg.stop();
-$("#ecgCsv").onclick = () => Ecg.csv();
-$("#ecgGain").onchange = () => { Ecg.draw(); if (!$("#stripWrap").hidden) Ecg.strip(); };
-window.addEventListener("resize", () => { Ecg.resize(); Hrv.draw(); });
+/* ---------- Pantalla ---------- */
+let rq=0; function scheduleRender(){ if(rq)return; rq=setTimeout(()=>{rq=0;render()},350); }
+const heart='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.5 1.8 8.6A3.9 3.9 0 0 1 8 3.6a3.9 3.9 0 0 1 6.2 5z"/></svg>';
+function live(b){ return b.hr!=null&&Date.now()-b.lastOk<cfg.stale*1000&&b.status!=='Reconectando'; }
+function rowsData(){
+  const arr=[...bands.values()].filter(b=>!b.removed).map(b=>{ const l=label(b), mx=hrmaxOf(l), on=live(b), pct=on?b.hr/mx:null;
+    const a=scope==='block'&&view==='sum'?b.bacc:b.acc; return {b,l,mx,on,pct,z:zoneOf(pct),s:stats(a,l)}; });
+  const nat=(x,y)=>x.l.localeCompare(y.l,'es',{numeric:true,sensitivity:'base'});
+  arr.sort(sortMode==='pct'?(x,y)=>(y.pct??-1)-(x.pct??-1)||nat(x,y):sortMode==='red'?(x,y)=>y.s.z[5]-x.s.z[5]||nat(x,y):sortMode==='load'?(x,y)=>y.s.trimp-x.s.trimp||nat(x,y):nat);
+  return arr; }
+function zbar(z,cls){ const tot=z.slice(1).reduce((a,b)=>a+b,0); if(!tot) return '<div class="zbar '+(cls||'')+'"></div>';
+  return '<div class="zbar '+(cls||'')+'">'+[1,2,3,4,5].map(k=>z[k]>0?'<i class="b'+k+'" style="width:'+(z[k]/tot*100).toFixed(1)+'%"></i>':'').join('')+'</div>'; }
+function stateText(b){ if(b.status==='Conectando')return 'conectando…'; if(b.status==='Reconectando')return 'reconectando…'; return 'sin señal'; }
+function render(){
+  const rows=rowsData(), has=rows.length>0, ev=view==='ecg', hv=view==='hist';
+  $('#empty').hidden=has||ev||hv; $('#team').hidden=!has||ev||hv; $('#ecgv').hidden=!ev; $('#hist').hidden=!hv;
+  $('#tiles').hidden=!has||view!=='tiles'; $('#list').hidden=!has||view!=='list'; $('#sum').hidden=!has||view!=='sum';
+  document.querySelectorAll('.seg button[data-view]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.view===view)));
+  $('#exampleTag').hidden=!demoMode;
+  // resumen del equipo
+  const onr=rows.filter(r=>r.on); const cnt=[0,0,0,0,0,0]; onr.forEach(r=>cnt[r.z]++);
+  $('#avgPct').textContent=onr.length?Math.round(onr.reduce((a,r)=>a+r.pct,0)/onr.length*100)+'%':'–';
+  $('#zchips').innerHTML=[5,4,3,2,1].map(k=>'<div class="zc z'+k+'"><b>'+cnt[k]+'</b><span>'+ZN[k]+'</span></div>').join('');
+  $('#teamNote').textContent=onr.length+' de '+rows.length+' bandas con señal'+(sess.state!=='idle'?' · bloque '+sess.block:'');
+  if(ev){ renderEcgView(); if(openKey) fillDetail(); return; }
+  if(hv){ if(openKey) fillDetail(); return; }
+  if(!has){ return; }
+  if(view==='tiles'){
+    $('#tiles').innerHTML=rows.map(r=>{ const b=r.b, rec=sess.state!=='idle';
+      return '<button type="button" class="tile z'+(r.on?r.z:0)+(r.on?'':' stale')+(b.flash&&Date.now()-b.flash<6000?' alert':'')+'" data-k="'+esc(b.key)+'">'+
+        '<div class="tn"><b>'+esc(r.l)+(b.num&&names[b.bandKey()]?'<small>#'+esc(b.num)+'</small>':'')+'</b>'+(r.on?'<span class="tz">'+ZN[r.z]+'</span>':'')+'</div>'+
+        (r.on?'<div class="tp">'+Math.round(r.pct*100)+'<small>%</small></div><div class="tb">'+heart+b.hr+' <small>LPM</small></div>'
+             :'<div class="tp">'+stateText(b)+'</div><div class="tb"><small>'+(b.hr!=null?'último '+b.hr+' lpm':esc(b.kind))+'</small></div>')+
+        (hrr.active&&hrr.data[b.key]?'<div class="tf"><span>Recup. '+mmss(60-(Date.now()-hrr.t0)/1000)+'</span><span>desde '+hrr.data[b.key].start+'</span></div>'+zbar(r.s.z):
+         b.hrrLast&&Date.now()-b.hrrLast.at<180000?'<div class="tf"><span>Recup. '+dropTxt(b.hrrLast.drop)+' lpm</span><span>Esf. '+(r.s.eff||'–')+'</span></div>'+zbar(r.s.z):
+         rec?'<div class="tf"><span>máx '+(r.s.max||'–')+' · Z5 '+mmss(r.s.z[5])+'</span><span>Esf. '+(r.s.eff||'–')+'</span></div>'+zbar(r.s.z):
+             '<div class="tf"><span>FC máx '+r.mx+'</span><span>'+(b.battery!=null?'bat. '+b.battery+'%':esc(b.kind))+'</span></div>')+
+        '</button>'; }).join('');
+  } else if(view==='list'){
+    $('#list').innerHTML=rows.map(r=>{ const w=r.on?Math.max(0,Math.min(1,(r.pct-0.4)/0.6)):0;
+      return '<button type="button" class="row'+(r.on?'':' stale')+'" data-k="'+esc(r.b.key)+'"><span class="rn">'+esc(r.l)+'</span>'+
+        '<span class="rbar"><i class="z'+(r.on?r.z:0)+'" style="width:'+(w*100).toFixed(1)+'%"></i>'+[0.6,0.7,0.8,0.9].map(p=>'<span class="m50" style="left:'+((p-0.4)/0.6*100).toFixed(1)+'%"></span>').join('')+'</span>'+
+        '<span class="rv">'+(r.on?Math.round(r.pct*100)+'%':'–')+'</span><span class="rb">'+(r.on?r.b.hr:'–')+'</span></button>'; }).join('');
+  } else renderSum(rows);
+  if(openKey) fillDetail();
+}
+function renderSum(rows){
+  $('#sumTitle').textContent=sess.state==='done'?'Resumen de la sesión ('+hms(elapsed())+')':sess.state==='idle'?'Resumen (todavía no se inició una sesión)':'Resumen en curso';
+  $('#sPdf').disabled=!rows.some(r=>r.b.acc.t>0);
+  $('#sumBody').innerHTML=rows.map(r=>{ const s=r.s;
+    return '<tr data-k="'+esc(r.b.key)+'"><td>'+esc(r.l)+'</td><td>'+mmss(s.t)+'</td><td class="num">'+fmt(s.avg)+'</td><td class="num">'+fmt(s.max)+'</td><td>'+(s.pmax?Math.round(s.pmax*100)+'%':'–')+'</td>'+
+      '<td class="zcol">'+zbar(s.z)+'<div class="zl">'+[1,2,3,4,5].map(k=>'<span>'+mmss(s.z[k])+'</span>').join('')+'</div></td>'+
+      '<td>'+mmss(s.z[4])+'</td><td>'+mmss(s.z[5])+'</td><td class="num">'+fmt(s.trimp)+'</td><td class="num">'+fmt(s.kcal)+'</td><td>'+effHtml(s.eff)+'</td><td>'+(r.b.hrrLast?dropTxt(r.b.hrrLast.drop):'–')+'</td></tr>'; }).join('');
+  $('#blocksWrap').hidden=!closedBlocks.length;
+  $('#blkBody').innerHTML=closedBlocks.map(c=>'<tr><td>'+esc(c.jugador)+'</td><td>'+c.bloque+'</td><td>'+mmss(c.duracion)+'</td><td class="num">'+fmt(c.avg)+'</td><td class="num">'+fmt(c.max)+'</td><td>'+mmss(c.z4)+'</td><td>'+mmss(c.z5)+'</td><td class="num">'+fmt(c.trimp)+'</td><td class="num">'+fmt(c.kcal)+'</td><td>'+effHtml(c.eff)+'</td></tr>').join('');
+  $('#hrrWrap').hidden=!hrrList.length;
+  $('#hrrBody').innerHTML=hrrList.map(h=>{ const avg=hrrAvg(h.jugador,h.fecha); const low=avg!=null&&h.drop<avg*0.8;
+    return '<tr><td>'+esc(h.jugador)+'</td><td>'+h.momento+'</td><td>'+h.bloque+'</td><td class="num">'+h.start+'</td><td class="num">'+h.end+'</td><td class="num">'+dropTxt(h.drop)+'</td><td>'+(avg!=null?'↓'+fmt(avg):'–')+'</td><td>'+(avg==null?'<span class="chip na">sin promedio</span>':low?'<span class="chip warn">menor que su promedio</span>':'<span class="chip ok">normal</span>')+'</td></tr>'; }).join('');
+}
+function setView(v){ view=v; store.set('trakfc.view',v); render(); if(v==='hist'){ histCur=null; renderHist(); } }
+function tickClock(){ const e=elapsed(); $('#clock').textContent=hms(e);
+  $('#clockLbl').textContent=sess.state==='running'?'Bloque '+sess.block+' · '+mmss(e-sess.blockStart):sess.state==='paused'?'En pausa':sess.state==='done'?'Sesión finalizada':'Sin sesión'; }
+setInterval(()=>{ tickClock(); },500);
+setInterval(()=>{ render(); },2000); // refresca estados "sin señal"
 
-/* =====================================================================
-   VFC (test de variabilidad con intervalos RR)
-   ===================================================================== */
-const Hrv = {
-  running:false, seq:0, all:[], t0:0, dur:300, stab:30, timer:null, bandId:"", bandName:"", mac:"", res:null,
-  async start(){
-    const id = $("#hrvSel").value; if (id === "") return;
-    const b = S.bands.find(x => String(x.id) === id);
-    if (!b || !b.conn) return;
-    this.bandId = id; this.bandName = label(b); this.mac = b.mac;
-    this.dur = +$("#hrvDur").value; this.stab = $("#hrvStab").checked ? 30 : 0;
-    this.all = []; this.res = null; this.running = true; this.seq = b.rrSeq; this.t0 = Date.now();
-    $("#hrvStats").hidden = $("#hrvResult").hidden = true;
-    this.ui(); WakeLock.get();
-    clearInterval(this.timer); this.timer = setInterval(() => this.poll(), 1000);
-    this.draw();
-  },
-  stop(done){
-    clearInterval(this.timer); this.running = false; WakeLock.release(); this.ui();
-    if (done) this.finish();
-    else { $("#hrvPhase").textContent = "Test cancelado"; }
-  },
-  ui(){
-    $("#hrvBtn").textContent = this.running ? "Cancelar" : "Iniciar test";
-    $("#hrvBtn").className = this.running ? "btn danger" : "btn primary";
-    ["#hrvSel","#hrvDur","#hrvPos","#hrvStab"].forEach(s => $(s).disabled = this.running);
-    $("#hrvCsv").disabled = this.running || !this.all.length;
-  },
-  async poll(){
-    try{
-      const r = await api("/api/rr?id=" + this.bandId + "&since=" + this.seq);
-      if (r.from > this.seq) this.lost = (this.lost || 0) + (r.from - this.seq);
-      this.seq = r.seq;
-      const el0 = (Date.now() - this.t0) / 1000;
-      for (const v of r.rr) this.all.push({rr:v, t:el0});
-    }catch(e){}
-    const el = (Date.now() - this.t0) / 1000, total = this.stab + this.dur;
-    const inStab = el < this.stab;
-    $("#hrvPhase").textContent = inStab ? "Estabilizando · " + this.bandName : "Midiendo · " + this.bandName;
-    $("#hrvClock").textContent = fmtT(inStab ? this.stab - el : total - el);
-    const recent = this.all.slice(-8).map(o => o.rr);
-    const hr = recent.length ? Math.round(60000 / (recent.reduce((a,b) => a + b, 0) / recent.length)) : "—";
-    $("#hrvLive").textContent = hr + " lpm · " + this.measured().length + " latidos";
-    this.draw();
-    if (el >= total) this.stop(true);
-  },
-  measured(){
-    // RR dentro de la ventana de medición (después de la estabilización), por tiempo acumulado de latidos
-    let acc = 0; const out = [];
-    for (const o of this.all){ acc += o.rr / 1000; if (acc > this.stab) out.push(o.rr); }
-    return out;
-  },
-  clean(rr){
-    // artefacto: fuera de 300–2000 ms o >20 % de diferencia con la mediana de los 5 anteriores válidos
-    const ok = [], flags = [];
-    for (const v of rr){
-      let good = v >= 300 && v <= 2000;
-      if (good && ok.length >= 3){
-        const m = ok.slice(-5).slice().sort((a,b) => a - b); const med = m[Math.floor(m.length/2)];
-        if (Math.abs(v - med) / med > 0.2) good = false;
-      }
-      flags.push(good); if (good) ok.push(v);
-    }
-    return flags;
-  },
-  metrics(rr){
-    const flags = this.clean(rr);
-    const nn = rr.filter((v,i) => flags[i]);
-    const diffs = [];
-    for (let i = 1; i < rr.length; i++) if (flags[i] && flags[i-1]) diffs.push(rr[i] - rr[i-1]);
-    if (nn.length < 20 || diffs.length < 10) return null;
-    const mean = nn.reduce((a,b) => a + b, 0) / nn.length;
-    const sdnn = Math.sqrt(nn.reduce((a,b) => a + (b - mean) ** 2, 0) / (nn.length - 1));
-    const rmssd = Math.sqrt(diffs.reduce((a,b) => a + b * b, 0) / diffs.length);
-    const pnn50 = diffs.filter(d => Math.abs(d) > 50).length / diffs.length * 100;
-    const sdsd2 = diffs.reduce((a,b) => a + b * b, 0) / diffs.length;  // aprox. (media de dif ≈ 0)
-    const sd1 = Math.sqrt(sdsd2 / 2), sd2 = Math.sqrt(Math.max(0, 2 * sdnn * sdnn - sdsd2 / 2));
-    return {n:nn.length, art:(rr.length - nn.length) / rr.length * 100, mean, hr:60000 / mean, sdnn, rmssd, ln:Math.log(rmssd), pnn50, sd1, sd2, flags};
-  },
-  finish(){
-    const rr = this.measured(), m = this.metrics(rr);
-    if (!m){ $("#hrvPhase").textContent = "No alcanzaron los latidos válidos. Revisá la banda y repetí."; return; }
-    this.res = {rr, m};
-    $("#hrvPhase").textContent = "Test terminado · " + this.bandName;
-    $("#hrvClock").textContent = m.ln.toFixed(2);
-    $("#hrvLive").textContent = "lnRMSSD";
-    const st = $("#hrvStats"); st.hidden = false;
-    st.innerHTML = [
-      ["lnRMSSD", m.ln.toFixed(2), ""], ["RMSSD", m.rmssd.toFixed(1), "ms"], ["SDNN", m.sdnn.toFixed(1), "ms"],
-      ["pNN50", m.pnn50.toFixed(1), "%"], ["FC media", m.hr.toFixed(0), "lpm"], ["RR medio", m.mean.toFixed(0), "ms"],
-      ["SD1 / SD2", m.sd1.toFixed(1) + " / " + m.sd2.toFixed(1), "ms"], ["Artefactos", m.art.toFixed(1), "%"]
-    ].map(s => '<div class="stat"><div class="v">' + s[1] + "<small>" + s[2] + '</small></div><div class="k">' + s[0] + "</div></div>").join("");
-    const hist = store("trakfc_hrv") || [];
-    hist.push({d:new Date().toISOString(), mac:this.mac, name:this.bandName, pos:$("#hrvPos").value, dur:this.dur,
-      ln:+m.ln.toFixed(3), rmssd:+m.rmssd.toFixed(1), sdnn:+m.sdnn.toFixed(1), hr:+m.hr.toFixed(1), art:+m.art.toFixed(1)});
-    store("trakfc_hrv", hist);
-    $("#hrvResult").hidden = false;
-    this.history(); this.draw(); this.ui();
-  },
-  history(){
-    const hist = (store("trakfc_hrv") || []).filter(h => h.mac === this.mac);
-    const rows = hist.slice(-12).reverse();
-    $("#hrvHist").innerHTML = "<table><thead><tr><th>Fecha</th><th>Posición</th><th>lnRMSSD</th><th>RMSSD</th><th>FC</th><th>Vs. base</th></tr></thead><tbody>" +
-      rows.map(h => {
-        const idx = hist.indexOf(h), prev = hist.slice(Math.max(0, idx - 7), idx).filter(p => p.pos === h.pos);
-        let tag = '<span class="tag eq">Sin base</span>';
-        if (prev.length >= 3){
-          const mu = prev.reduce((a,p) => a + p.ln, 0) / prev.length;
-          const sd = Math.sqrt(prev.reduce((a,p) => a + (p.ln - mu) ** 2, 0) / (prev.length - 1));
-          const swc = 0.5 * sd;
-          tag = h.ln < mu - swc ? '<span class="tag dn">Bajo</span>' : h.ln > mu + swc ? '<span class="tag up">Alto</span>' : '<span class="tag eq">Normal</span>';
-        }
-        const d = new Date(h.d);
-        return "<tr><td>" + pad2(d.getDate()) + "/" + pad2(d.getMonth()+1) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + "</td><td>" + esc(h.pos) +
-          '</td><td class="n"><strong>' + h.ln.toFixed(2) + '</strong></td><td class="n">' + h.rmssd + '</td><td class="n">' + Math.round(h.hr) + "</td><td>" + tag + "</td></tr>";
-      }).join("") + "</tbody></table>";
-  },
-  canvas(sel, hgt){
-    const cv = $(sel), r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-    if (!r.width) return null;
-    cv.width = Math.round(r.width * dpr); cv.height = Math.round(hgt * dpr); cv.style.height = hgt + "px";
-    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return {ctx, w:r.width, h:hgt};
-  },
-  draw(){
-    const c = this.canvas("#tachoCv", 240); if (!c) return;
-    const {ctx, w, h} = c, P = {l:44, r:10, t:10, b:24};
-    const rr = this.all.map(o => o.rr), flags = this.clean(rr);
-    ctx.font = "12px " + css("--txt"); ctx.fillStyle = css("--muted"); ctx.strokeStyle = css("--line");
-    let lo = 400, hi = 1400;
-    const good = rr.filter((v,i) => flags[i]);
-    if (good.length){ lo = Math.min(...good) - 40; hi = Math.max(...good) + 40; }
-    const yv = v => P.t + (1 - (v - lo) / (hi - lo)) * (h - P.t - P.b);
-    for (let k = 0; k <= 4; k++){
-      const v = lo + (hi - lo) * k / 4, y = yv(v);
-      ctx.beginPath(); ctx.moveTo(P.l, y); ctx.lineTo(w - P.r, y); ctx.stroke(); ctx.fillText(Math.round(v), 6, y + 4);
-    }
-    if (!rr.length){ ctx.fillText(this.running ? "Esperando latidos…" : "Elegí un jugador y tocá Iniciar test", P.l + 8, h / 2); return; }
-    const total = this.all.reduce((a,o) => a + o.rr, 0) / 1000, span = Math.max(total, this.stab + this.dur);
-    const xv = t => P.l + t / span * (w - P.l - P.r);
-    if (this.stab){ ctx.fillStyle = "rgba(127,127,127,.12)"; ctx.fillRect(P.l, P.t, xv(this.stab) - P.l, h - P.t - P.b); }
-    ctx.strokeStyle = css("--z2"); ctx.lineWidth = 1.8; ctx.beginPath();
-    let t = 0, started = false;
-    rr.forEach((v,i) => { t += v / 1000; if (!flags[i]) return; const x = xv(t), y = yv(v); started ? ctx.lineTo(x, y) : ctx.moveTo(x, y); started = true; });
-    ctx.stroke();
-    ctx.fillStyle = css("--z5"); t = 0;
-    rr.forEach((v,i) => { t += v / 1000; if (flags[i]) return; ctx.beginPath(); ctx.arc(xv(t), yv(Math.min(Math.max(v, lo), hi)), 3, 0, 7); ctx.fill(); });
-    ctx.fillStyle = css("--muted"); ctx.fillText("tiempo (s) · puntos rojos = artefactos descartados", P.l, h - 6);
-    if (this.res) this.poincare();
-  },
-  poincare(){
-    const c = this.canvas("#poinCv", 260); if (!c || !this.res) return;
-    const {ctx, w, h} = c, rr = this.res.rr, f = this.res.m.flags, pts = [];
-    for (let i = 1; i < rr.length; i++) if (f[i] && f[i-1]) pts.push([rr[i-1], rr[i]]);
-    const all = pts.flat(), lo = Math.min(...all) - 30, hi = Math.max(...all) + 30, P = 36, s = Math.min(w, h) - P - 10;
-    const X = v => P + (v - lo) / (hi - lo) * s, Y = v => 10 + s - (v - lo) / (hi - lo) * s;
-    ctx.strokeStyle = css("--line"); ctx.strokeRect(P, 10, s, s);
-    ctx.beginPath(); ctx.moveTo(X(lo), Y(lo)); ctx.lineTo(X(hi), Y(hi)); ctx.stroke();
-    ctx.fillStyle = css("--z2"); ctx.globalAlpha = .55;
-    for (const p of pts){ ctx.beginPath(); ctx.arc(X(p[0]), Y(p[1]), 2.6, 0, 7); ctx.fill(); }
-    ctx.globalAlpha = 1; ctx.fillStyle = css("--muted"); ctx.font = "11px " + css("--txt");
-    ctx.fillText(Math.round(lo), P, s + 24); ctx.fillText(Math.round(hi), P + s - 24, s + 24);
-  },
-  csv(){
-    if (!this.all.length) return;
-    const f = this.clean(this.all.map(o => o.rr));
-    let s = "latido,rr_ms,valido\n"; this.all.forEach((o,i) => s += (i+1) + "," + o.rr + "," + (f[i] ? 1 : 0) + "\n");
-    download("TrakFC_RR_" + this.bandName.replace(/\W+/g, "_") + "_" + stamp() + ".csv", s);
-  }
-};
-$("#hrvBtn").onclick = () => Hrv.running ? Hrv.stop(false) : Hrv.start();
-$("#hrvCsv").onclick = () => Hrv.csv();
-$("#hrvDur").onchange = () => { if (!Hrv.running) $("#hrvClock").textContent = fmtT(+$("#hrvDur").value); };
-$("#histCsv").onclick = () => {
-  const h = store("trakfc_hrv") || [];
-  download("TrakFC_historial_VFC_" + stamp() + ".csv", "fecha,jugador,mac,posicion,duracion_s,lnrmssd,rmssd,sdnn,fc,artefactos_pct\n" +
-    h.map(x => [x.d, '"' + x.name.replace(/"/g,'""') + '"', x.mac, x.pos, x.dur, x.ln, x.rmssd, x.sdnn, x.hr, x.art].join(",")).join("\n"));
-};
+/* ---------- Detalle del jugador ---------- */
+function openDetail(k){ openKey=k; const b=bands.get(k); if(!b)return; $('#dName').value=label(b); $('#dNumWrap').hidden=b.kind!=='Placa'; $('#dNum').value=b.num||''; const p=pcfg[label(b)]; $('#dMax').value=p&&p.hrmax?p.hrmax:''; $('#dMax').placeholder='general: '+cfg.hrmax;
+  const pr=prof(label(b)); $('#dRep').value=pr.fcrep||''; const rh=restHr(label(b)); $('#dRep').placeholder=rh&&rh.src!=='cargada'?'test de VFC: '+rh.v:'del último test de VFC'; $('#dPeso').value=pr.peso||''; $('#dEdad').value=pr.edad||''; $('#dSexo').value=pr.sexo||'M'; $('#ovD').hidden=false; fillDetail(); }
+function closeDetail(){ openKey=null; $('#ovD').hidden=true; }
+function fillDetail(){ const b=bands.get(openKey); if(!b){closeDetail();return}
+  const l=label(b), mx=hrmaxOf(l), on=live(b), pct=on?b.hr/mx:null, z=zoneOf(pct), s=stats(b.acc,l);
+  $('#dTitle').textContent=l; $('#dBig').className='dbig z'+(on?z:0); $('#dPct').textContent=on?Math.round(pct*100)+'%':'–'; $('#dBpm').textContent=(on?b.hr:'–')+' lpm';
+  $('#dDev').textContent=b.kind+' · '+b.bandKey().slice(3)+(b.battery!=null?' · batería '+b.battery+'%':'')+' · '+(on?'con señal':stateText(b));
+  $('#dStats').innerHTML=[['FC media',fmt(s.avg)],['FC máx alcanzada',fmt(s.max)+(s.pmax?' <small>('+Math.round(s.pmax*100)+'%)</small>':'')],['Tiempo registrado',mmss(s.t)],['Z4',mmss(s.z[4])],['Z5',mmss(s.z[5])],['Carga',fmt(s.trimp)],['Esfuerzo',s.eff?s.eff+' <small>'+effLabel(s.eff)+'</small>':'–'],['Calorías activas',fmt(s.kcal)+' <small>kcal'+(prof(l).peso?'':' (peso sin cargar)')+'</small>'],['Recup. FC',b.hrrLast?dropTxt(b.hrrLast.drop)+' <small>lpm</small>':'–'],['VO2 máx est.',(v=>v?fmt(v)+' <small>ml/kg/min</small>':'<small>falta FC de reposo</small>')(vo2Of(l))],['Frec. resp.',(h=>h&&h.resp?fmt(h.resp)+' <small>/min (test VFC)</small>':'–')(hrvHist.filter(x=>x.jugador===l).slice(-1)[0])]]
+    .map(([k,v])=>'<div><span>'+k+'</span><b>'+v+'</b></div>').join('');
+  drawChart(b,mx); }
+function drawChart(b,mx){
+  const c=$('#chart'), dpr=window.devicePixelRatio||1, W=c.clientWidth||600, H=c.clientHeight||190;
+  if(c.width!==Math.round(W*dpr)){ c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); }
+  const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const cs=getComputedStyle(document.documentElement), col=n=>cs.getPropertyValue(n).trim();
+  const L=34,R=8,T=8,B=20, lo=Math.round(mx*0.4), hi=mx;
+  const y=v=>T+(H-T-B)*(1-(Math.min(hi,Math.max(lo,v))-lo)/(hi-lo));
+  [[0.5,0.6,'--z1'],[0.6,0.7,'--z2'],[0.7,0.8,'--z3'],[0.8,0.9,'--z4'],[0.9,1,'--z5']].forEach(([a,bb,n])=>{ g.globalAlpha=0.16; g.fillStyle=col(n); g.fillRect(L,y(mx*bb),W-L-R,y(mx*a)-y(mx*bb)); });
+  g.globalAlpha=1; g.fillStyle=col('--muted'); g.font='11px '+col('--body'); g.textAlign='right'; g.textBaseline='middle';
+  [0.5,0.6,0.7,0.8,0.9].forEach(p=>g.fillText(Math.round(mx*p),L-6,y(mx*p)));
+  const pts=b.samples; const tEnd=Math.max(60,elapsed());
+  g.textAlign='center'; g.textBaseline='alphabetic';
+  const step=tEnd>2400?600:tEnd>600?300:60; for(let t=0;t<=tEnd;t+=step){ g.fillText(Math.round(t/60)+"'",L+(W-L-R)*t/tEnd,H-5); }
+  if(pts.length<2){ g.textAlign='center'; g.fillText(sess.state==='idle'?'La curva aparece cuando iniciás la sesión':'Juntando datos…',W/2,H/2); return; }
+  g.strokeStyle=col('--fg'); g.lineWidth=2; g.lineJoin='round'; g.beginPath();
+  pts.forEach(([t,v],i)=>{ const X=L+(W-L-R)*t/tEnd, Y=y(v); i?g.lineTo(X,Y):g.moveTo(X,Y); }); g.stroke();
+  const [lt,lv]=pts[pts.length-1]; g.fillStyle=col('--fg'); g.beginPath(); g.arc(L+(W-L-R)*lt/tEnd,y(lv),3.5,0,7); g.fill(); }
 
-/* =====================================================================
-   Modo demo (se activa abriendo el archivo suelto o con ?demo)
-   ===================================================================== */
-const Demo = (() => {
-  const names = ["Pilar izquierdo","Hooker","Pilar derecho","Segunda línea 4","Segunda línea 5","Ala 6","Ala 7","Octavo","Medio scrum","Apertura"];
-  const t0 = performance.now();
-  const bands = names.map((n,i) => ({id:i, mac:"C8:2E:" + pad2(10+i) + ":4A:91:" + pad2(30+i), dev: i === 1 ? "Polar H10 8A21C4" : "HRM-Dual " + (1200+i),
-    name:n, hrmax:[192,198,188,201,195,203,205,199,207,204][i], conn: i < 9 ? 1 : 0, hr:0, contact:1, bat:[88,64,100,45,79,92,23,70,55,81][i],
-    rssi:-52 - i * 3, h10: i === 1 ? 1 : 0, rr:1, rrSeq:0, _rr:[], _t:0, _base:120 + i * 6, _ph:i}));
-  let onlyAssigned = false, ecg = {status:0, err:0, band:-1, seq:0, t:0}, ecgBuf = [], ecgHr = 62, ecgPh = 0;
-  const now = () => (performance.now() - t0) / 1000;
-  function step(){
-    const t = now();
-    for (const b of bands){
-      if (!b.conn) continue;
-      const target = b._base + 45 * Math.max(0, Math.sin(t / 40 + b._ph)) + 8 * Math.sin(t / 6 + b._ph * 2);
-      const hr = b.id === 1 && ecg.status === 2 ? 64 + 3 * Math.sin(t / 4) : target;
-      while (b._t < t){
-        const rr = Math.round(60000 / hr * (1 + 0.04 * Math.sin(b._t * 1.6) + (Math.random() - 0.5) * 0.03));
-        b._rr.push(rr); b.rrSeq++; b._t += rr / 1000;
-        if (b._rr.length > 256) b._rr.shift();
-      }
-      b.hr = Math.round(hr);
+/* ---------- Alertas ---------- */
+let actx=null;
+function initAudio(){ try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended') actx.resume(); }catch(e){} }
+function beep(){ if(!cfg.alerts.sound||!actx) return; try{ [0,0.22].forEach(d=>{ const o=actx.createOscillator(), g=actx.createGain(); o.frequency.value=880; o.connect(g); g.connect(actx.destination);
+  const t=actx.currentTime+d; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.16); o.start(t); o.stop(t+0.18); }); }catch(e){} }
+function toast(msg,hot){ const box=$('#toasts'), el=document.createElement('div'); el.className='toast'+(hot?' hot':''); el.textContent=msg; box.appendChild(el); while(box.children.length>4) box.firstChild.remove(); setTimeout(()=>el.remove(),6500); }
+function checkAlerts(b,hr,now){ const A=cfg.alerts; if(!A.on) return; const l=label(b), pct=hr/hrmaxOf(l);
+  if(pct>=A.pct/100){ if(!b.alHi&&(!b.alHiAt||now-b.alHiAt>60000)){ b.alHi=true; b.alHiAt=now; b.flash=now; toast(l+': '+Math.round(pct*100)+'% de su FC máx ('+hr+' lpm)',true); beep(); } }
+  else if(pct<A.pct/100-0.03) b.alHi=false;
+  if(zoneOf(pct)===5){ b.z5since=b.z5since||now; if(!b.alZ5&&now-b.z5since>=A.z5s*1000){ b.alZ5=true; b.flash=now; toast(l+' lleva '+mmss((now-b.z5since)/1000)+' seguidos en Z5',true); beep(); } }
+  else { b.z5since=0; b.alZ5=false; } }
+
+/* ---------- Recuperación de la FC (60 s) ---------- */
+const hrr={active:false,t0:0,data:{},timer:0}; let hrrList=[]; let hrrHist=store.get('trakfc.hrr',[]);
+const dropTxt=d=>d>=0?'↓'+d:'↑'+(-d);
+function hrrAvg(j,before){ const p=hrrHist.filter(h=>h.jugador===j&&h.fecha<before).slice(-5); return p.length?p.reduce((a,h)=>a+h.drop,0)/p.length:null; }
+function startHrr(){
+  if(hrr.active){ clearInterval(hrr.timer); hrr.active=false; hrr.data={}; $('#hrrLbl').textContent='Recup.'; $('#btnHrr').classList.remove('on'); toast('Medición de recuperación cancelada'); render(); return; }
+  const now=Date.now(); hrr.data={};
+  for(const b of bands.values()){ if(b.removed||!live(b)) continue; const rec=(b.recent||[]).filter(x=>now-x[0]<=10000).map(x=>x[1]); hrr.data[b.key]={start:Math.max(b.hr,...rec)}; }
+  if(!Object.keys(hrr.data).length){ toast('No hay bandas con señal para medir'); return; }
+  initAudio(); hrr.active=true; hrr.t0=now; hrr.block=sess.state==='idle'?'–':sess.block; hrr.mom=sess.state==='idle'?new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):hms(elapsed());
+  toast('Recuperación: que corten el esfuerzo. Mido 60 s'); log('Recuperación de FC iniciada con',Object.keys(hrr.data).length,'jugadores');
+  hrr.timer=setInterval(()=>{ const e=(Date.now()-hrr.t0)/1000; $('#hrrLbl').textContent=mmss(60-e); $('#btnHrr').classList.add('on'); if(e>=60) finishHrr(); },500); render(); }
+function finishHrr(){ clearInterval(hrr.timer); hrr.active=false; $('#hrrLbl').textContent='Recup.'; $('#btnHrr').classList.remove('on'); const fecha=new Date().toISOString(); let n=0;
+  for(const [k,d] of Object.entries(hrr.data)){ const b=bands.get(k); if(!b||b.removed||!live(b)) continue; const end=b.hr, drop=d.start-end;
+    const h={fecha,jugador:label(b),momento:hrr.mom,bloque:hrr.block,start:d.start,end,drop}; hrrList.push(h); hrrHist.push(h); b.hrrLast={drop,at:Date.now()}; n++; }
+  hrrHist=hrrHist.slice(-3000); store.set('trakfc.hrr',hrrHist); hrr.data={}; toast('Recuperación medida en '+n+' jugadores'); beep(); log('Recuperación de FC terminada:',n,'jugadores'); render(); }
+setInterval(()=>{ $('#btnHrr').disabled=!hrr.active&&![...bands.values()].some(b=>!b.removed&&live(b)); },1000);
+
+/* ---------- Frecuencia respiratoria (de los latidos) ---------- */
+function spectrum(ts,vs){ if(ts.length<8||ts[ts.length-1]-ts[0]<20) return null; const fs=4, t0=ts[0], T=ts[ts.length-1]-t0, n=Math.floor(T*fs), x=new Array(n); let j=0;
+  for(let i=0;i<n;i++){ const t=t0+i/fs; while(j<ts.length-2&&ts[j+1]<t) j++; const a=ts[j], b=ts[j+1], f=b>a?(t-a)/(b-a):0; x[i]=vs[j]+(vs[j+1]-vs[j])*Math.max(0,Math.min(1,f)); }
+  let sx=0,sy=0,sxy=0,sxx=0; for(let i=0;i<n;i++){ sx+=i; sy+=x[i]; sxy+=i*x[i]; sxx+=i*i; } const sl=(n*sxy-sx*sy)/(n*sxx-sx*sx||1), ic=(sy-sl*sx)/n;
+  for(let i=0;i<n;i++) x[i]=(x[i]-(ic+sl*i))*(0.5-0.5*Math.cos(2*Math.PI*i/(n-1)));
+  const P=[]; for(let f=0.12;f<=0.6001;f+=0.005){ let re=0,im=0; for(let i=0;i<n;i++){ const w=2*Math.PI*f*i/fs; re+=x[i]*Math.cos(w); im-=x[i]*Math.sin(w); } P.push([f,re*re+im*im]); }
+  const mx=Math.max(...P.map(p=>p[1]))||1; return P.map(([f,p])=>[f,p/mx]); }
+function respRate(specs){ const ok=specs.filter(Boolean); if(!ok.length) return null; const sum=ok[0].map(([f],i)=>[f,ok.reduce((a,sp)=>a+sp[i][1],0)/ok.length]);
+  let best=sum[0]; for(const p of sum) if(p[1]>best[1]) best=p; const tot=sum.reduce((a,p)=>a+p[1],0), near=sum.filter(p=>Math.abs(p[0]-best[0])<=0.03).reduce((a,p)=>a+p[1],0); return near/tot>=0.35?best[0]*60:null; }
+function respFromRR(rr){ const ts=[], vs=[]; let t=0; for(const x of rr){ t+=x/1000; if(x>=300&&x<=2000){ ts.push(t); vs.push(x); } } return respRate([spectrum(ts,vs)]); }
+
+/* ---------- Electrocardiograma (Polar H10) ---------- */
+const FS=130;
+function parsePmdEcg(u){ if(u.length<13||u[0]!==0x00||u[9]!==0x00) return null; const n=Math.floor((u.length-10)/3), out=new Array(n);
+  for(let i=0;i<n;i++){ const o=10+3*i; let x=u[o]|(u[o+1]<<8)|(u[o+2]<<16); if(x&0x800000)x-=0x1000000; out[i]=x; } return out; }
+const ecg={dev:null,live:false,buf:[],rec:null,lastAt:0,raf:0,review:null};
+let sub=store.get('trakfc.sub','ecg');
+let ecgSaved=store.get('trakfc.ecg',[]);
+function ecgDevices(){ return [...bands.values()].filter(b=>!b.removed&&b.pmd); }
+let eDevSig='';
+function refreshEcgDevices(){ const list=ecgDevices(), sig=list.map(b=>b.key+label(b)).join('|'); if(sig===eDevSig)return; eDevSig=sig; const sel=$('#eDev'), cur=sel.value;
+  sel.innerHTML=list.length?list.map(b=>'<option value="'+esc(b.key)+'">'+esc(label(b))+' · '+esc(b.device&&b.device.name||b.kind)+'</option>').join(''):'<option value="">Sin Polar H10 conectada</option>';
+  if(list.some(b=>b.key===cur)) sel.value=cur; }
+function onEcg(arr){ ecg.lastAt=Date.now(); const B=ecg.buf; for(const x of arr)B.push(x); if(B.length>FS*8)B.splice(0,B.length-FS*8);
+  if(ecg.rec){ ecg.rec.s.push(...arr); const p=Math.min(1,ecg.rec.s.length/(FS*30)); $('#eProg i').style.width=(p*100).toFixed(1)+'%'; $('#eRec').textContent='Grabando… '+Math.ceil(30-ecg.rec.s.length/FS)+' s'; if(ecg.rec.s.length>=FS*30) finishRec(); } }
+async function ecgLiveStart(){ const dev=bands.get($('#eDev').value); if(!dev){ $('#eStat').textContent='Primero conectá una Polar H10 con + Banda Bluetooth. Si ya estaba conectada antes de esta versión, quitala y agregala de nuevo para darle permiso al ECG.'; return false; }
+  try{ ecg.buf=[]; ecg.dev=dev; ecg.live=true; ecg.lastAt=0; ecg.started=Date.now(); await dev.ecgStart(onEcg); keepAwake(); }catch(e){ ecg.live=false; ecg.dev=null; log('ECG: no se pudo iniciar:',e.message); $('#eStat').textContent='No se pudo iniciar el ECG: '+e.message; return false; }
+  updEcgUi(); loopEcg(); return true; }
+async function ecgLiveStop(){ if(ecg.dev) await ecg.dev.ecgStop(); ecg.live=false; ecg.rec=null; ecg.dev=null; updEcgUi(); drawLive(); }
+async function ecgRecord(){ if(ecg.rec){ ecg.rec=null; updEcgUi(); return; } if(!ecg.live&&!(await ecgLiveStart())) return;
+  ecg.rec={s:[],t0:Date.now(),dev:ecg.dev}; $('#eProg').hidden=false; $('#eProg i').style.width='0%'; updEcgUi(); }
+function finishRec(){ const r=ecg.rec; ecg.rec=null; r.s=r.s.slice(0,FS*30); const b=r.dev, a=analyzeEcg(r.s);
+  const item={id:Date.now(),fecha:new Date(r.t0).toISOString(),jugador:label(b),banda:b.bandKey().slice(3),s:r.s.slice(0,FS*30),hr:a.hr,beats:a.beats,rmssd:a.rmssd};
+  ecgSaved.unshift(item); ecgSaved=ecgSaved.slice(0,30); store.set('trakfc.ecg',ecgSaved); log('ECG: registro de 30 s guardado ('+item.jugador+')');
+  showReview(item); updEcgUi(); renderEcgView(); }
+function updEcgUi(){ $('#eLive').textContent=ecg.live?'Detener':'Ver en vivo'; $('#eRec').textContent=ecg.rec?'Grabando…':'Grabar 30 s'; $('#eProg').hidden=!ecg.rec; $('#eDev').disabled=ecg.live; }
+function ecgStatus(){ const el=$('#eStat');
+  if(!ecgDevices().length){ el.innerHTML='Conectá una Polar H10 con <b style="font-size:inherit;font-family:inherit">+ Banda Bluetooth</b>. Solo esa banda manda la señal del electrocardiograma.'; return; }
+  if(!ecg.live){ el.textContent='Elegí la banda y tocá Ver en vivo. Para un trazado limpio, el jugador quieto, sentado y sin hablar.'; return; }
+  const d=ecg.dev; if(!ecg.lastAt){ el.textContent=Date.now()-ecg.started>6000?'La H10 no está mandando la señal. Revisá que el sensor esté húmedo y que no esté conectada a otra app (Polar Beat, Flow).':'Esperando la señal…'; return; }
+  el.innerHTML=(d.contact===false?'<span style="color:var(--bad)">Sin contacto con la piel</span> · ':'')+'FC <b>'+(d.hr??'–')+'</b> lpm · '+esc(label(d))+(ecg.rec?' · grabando':''); }
+function loopEcg(){ cancelAnimationFrame(ecg.raf); const f=()=>{ if(!ecg.live)return; if(view==='ecg'&&sub==='ecg') drawLive(); ecg.raf=requestAnimationFrame(f); }; ecg.raf=requestAnimationFrame(f); }
+function sizeCanvas(c,h){ const dpr=window.devicePixelRatio||1, W=c.clientWidth||600, H=h||c.clientHeight||200; if(h) c.style.height=h+'px';
+  if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){ c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); }
+  const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); return {g,W,H}; }
+function paper(g,x0,y0,W,H,pxs,pxmv){ const cs=getComputedStyle(document.documentElement), col=n=>cs.getPropertyValue(n).trim();
+  g.fillStyle=col('--paper'); g.fillRect(x0,y0,W,H);
+  const lines=(stepX,stepY,c,w)=>{ g.strokeStyle=c; g.lineWidth=w; g.beginPath(); for(let x=x0;x<=x0+W+0.5;x+=stepX){ g.moveTo(Math.round(x)+.5,y0); g.lineTo(Math.round(x)+.5,y0+H); } for(let y=y0+H/2%stepY;y<=y0+H;y+=stepY){ g.moveTo(x0,Math.round(y)+.5); g.lineTo(x0+W,Math.round(y)+.5); } g.stroke(); };
+  if(pxs*0.04>=3) lines(pxs*0.04,pxmv*0.1,col('--gminor'),1);
+  lines(pxs*0.2,pxmv*0.5,col('--gmajor'),1); }
+function median(a){ if(!a.length)return 0; const b=[...a].sort((x,y)=>x-y); return b[b.length>>1]; }
+function trace(g,arr,x0,mid,pxs,pxmv,base){ const cs=getComputedStyle(document.documentElement); g.strokeStyle=cs.getPropertyValue('--trace').trim(); g.lineWidth=1.6; g.lineJoin='round'; g.beginPath();
+  arr.forEach((v,i)=>{ const X=x0+i/FS*pxs, Y=mid-(v-base)/1000*pxmv; i?g.lineTo(X,Y):g.moveTo(X,Y); }); g.stroke(); }
+function drawLive(){ const c=$('#ecgLive'); if(!c||c.offsetParent===null)return; const {g,W,H}=sizeCanvas(c); const win=W>=700?5:3, pxs=W/win, pxmv=pxs*0.4;
+  paper(g,0,0,W,H,pxs,pxmv); ecgStatus();
+  const n=Math.min(ecg.buf.length,win*FS), arr=ecg.buf.slice(ecg.buf.length-n); if(n<2){ g.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--muted').trim(); g.font='14px '+getComputedStyle(document.documentElement).getPropertyValue('--body'); g.textAlign='center'; g.fillText(ecg.live?'Esperando la señal…':'Tocá Ver en vivo para mostrar el trazado',W/2,H/2); return; }
+  trace(g,arr,W-n/FS*pxs,H/2,pxs,pxmv,median(arr)); }
+function detectR(s){ const n=s.length; if(n<FS*2)return [];
+  const sorted=[...s].sort((a,b)=>a-b), lo=sorted[Math.floor(n*0.005)], hi=sorted[Math.floor(n*0.995)], med=sorted[n>>1]; const sign=(hi-med)>=(med-lo)?1:-1;
+  const d=new Array(n).fill(0); for(let i=1;i<n-1;i++){ const x=(s[i+1]-s[i-1]); d[i]=x*x; }
+  const w=Math.round(0.12*FS), m=new Array(n).fill(0); let acc=0; for(let i=0;i<n;i++){ acc+=d[i]; if(i>=w)acc-=d[i-w]; m[i]=acc/w; }
+  const ms=[...m].sort((a,b)=>a-b), thr=0.3*ms[Math.floor(n*0.98)]; const peaks=[]; let i=0;
+  while(i<n){ if(m[i]>thr){ let j=i; while(j<n&&m[j]>thr)j++; let best=-1,bv=-Infinity; for(let k=Math.max(0,i-w);k<Math.min(n,j+4);k++){ const v=sign*s[k]; if(v>bv){bv=v;best=k;} }
+      if(peaks.length&&best-peaks[peaks.length-1]<0.3*FS){ if(sign*s[best]>sign*s[peaks[peaks.length-1]]) peaks[peaks.length-1]=best; } else peaks.push(best); i=j; } else i++; }
+  return peaks; }
+function analyzeEcg(s){ const pk=detectR(s), rr=[]; for(let i=1;i<pk.length;i++) rr.push((pk[i]-pk[i-1])/FS*1000);
+  const c=cleanRR(rr), st=hrvStats(c.nn), m=median(rr), flags=new Set(); let prem=0, pauses=0, irr=0;
+  for(let i=0;i<rr.length;i++){
+    if(rr[i]<0.8*m&&i+1<rr.length&&rr[i+1]>1.1*m){ prem++; flags.add(i+1); }
+    if(rr[i]>Math.max(2000,1.8*m)){ pauses++; flags.add(i+1); }
+    if(i&&Math.abs(rr[i]-rr[i-1])>0.15*m) irr++; }
+  const skip=new Set(); flags.forEach(f=>{ skip.add(f-1); if(rr[f]!=null&&rr[f-1]<0.8*m) skip.add(f); }); const rrN=rr.filter((x,i)=>!skip.has(i));
+  const bad=rr.length?rr.filter(x=>x<300||x>3000).length/rr.length:1;
+  const mean=rrN.length?rrN.reduce((a,b)=>a+b,0)/rrN.length:0, cv=rrN.length>2?Math.sqrt(rrN.reduce((a,b)=>a+(b-mean)**2,0)/(rrN.length-1))/mean:null;
+  // ruido: cuánto se mueve la línea entre latidos (fuera del QRS), en µV
+  let nz=[]; for(let i=1;i<pk.length;i++){ const a=pk[i-1]+Math.round(0.35*FS), b=pk[i]-Math.round(0.12*FS); for(let k=a+1;k<b;k++) nz.push(Math.abs(s[k]-s[k-1])); }
+  const noise=nz.length?median(nz):null, ramp=pk.length?median(pk.map(p=>Math.abs(s[p]-median(s.slice(Math.max(0,p-40),p+40))))):0;
+  const ts=pk.slice(1).map(p=>p/FS), amps=pk.map(p=>s[p]-median(s.slice(Math.max(0,p-40),p+40))).slice(1);
+  const resp=respRate([spectrum(ts,rr),spectrum(ts,amps)]);
+  return {resp,peaks:pk,rr,beats:pk.length,hr:st.hr,rmssd:st.rmssd,rrMin:rr.length?Math.min(...rr):null,rrMax:rr.length?Math.max(...rr):null,art:c.art,prem,pauses,pIrr:rr.length>2?irr/(rr.length-1):0,irr,cv,flags,noise,ramp,bad,nMin:rrN.length?Math.min(...rrN):null,nMax:rrN.length?Math.max(...rrN):null}; }
+function describeEcg(a){
+  const L=[]; const hr=a.hr;
+  if(a.beats<10||a.bad>0.1||(a.noise!=null&&a.ramp&&a.noise>a.ramp*0.12)){
+    return {level:'noise',label:'Señal con ruido',lines:['La señal tiene mucho ruido o se cortó: no se puede describir el ritmo con seguridad.','Repetí el registro con el sensor bien húmedo, la banda ajustada y el jugador quieto, sentado y sin hablar.']}; }
+  L.push('Frecuencia cardíaca media de '+fmt(hr)+' lpm'+(hr<50?': baja para un adulto en reposo, algo habitual en deportistas entrenados.':hr<=100?': dentro del rango habitual en reposo.':': elevada para un registro en reposo. Si el jugador venía de moverse, repetilo después de 5 minutos sentado.'));
+  let level='ok', label='Ritmo regular';
+  if(a.pIrr>0.3&&a.irr>a.prem*3+2){ level='rev'; label='Para revisar'; L.push('Los intervalos entre latidos cambian mucho de un latido a otro: el ritmo se ve irregular durante buena parte del registro.'); }
+  else if(a.prem>0){ level='rev'; label='Para revisar'; L.push('Ritmo mayormente regular, con '+a.prem+(a.prem===1?' latido que llegó':' latidos que llegaron')+' antes de lo esperado (marcados en naranja).'); }
+  else if(a.cv!=null&&a.cv<0.05) L.push('Ritmo regular: los intervalos entre latidos son parejos (de '+fmt(a.nMin)+' a '+fmt(a.nMax)+' ms).');
+  else L.push('Ritmo regular, con cambios graduales del intervalo entre latidos como los que produce la respiración (de '+fmt(a.nMin)+' a '+fmt(a.nMax)+' ms).');
+  if(a.pauses){ level='rev'; label='Para revisar'; L.push('Se '+(a.pauses===1?'detectó una pausa':'detectaron '+a.pauses+' pausas')+' entre latidos más larga de lo esperado (marcada en naranja).'); }
+  if(a.resp) L.push('Frecuencia respiratoria estimada a partir del trazado: '+fmt(a.resp)+' por minuto'+(a.resp>=10&&a.resp<=22?'.':' (fuera de lo habitual en reposo; puede deberse a que habló o se movió).'));
+  L.push('Calidad de la señal: '+(a.bad===0&&a.noise!=null&&a.noise<a.ramp*0.05?'buena.':'aceptable, con algo de ruido.'));
+  if(level==='rev') L.push('Conviene repetir el registro en reposo y mostrárselo a un cardiólogo.');
+  return {level,label,lines:L}; }
+const DESC_NOTE='Descripción automática y orientativa, hecha por la app a partir de una sola derivación. No es un diagnóstico: ante cualquier duda, consultar con un cardiólogo.';
+function renderDesc(a){ const d=describeEcg(a), cls=d.level==='ok'?'ok':d.level==='rev'?'warn':'na';
+  $('#rDesc').innerHTML='<div class="dh">Descripción del registro <span class="chip '+cls+'">'+d.label+'</span></div><ul>'+d.lines.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><div class="dn">'+DESC_NOTE+'</div>'; }
+function showReview(item){ ecg.review=item; $('#eReview').hidden=false; $('#rObs').value=item.obs||''; $('#rMsg').textContent=''; const a=analyzeEcg(item.s);
+  $('#rTitle').textContent=item.jugador+' · '+new Date(item.fecha).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'});
+  $('#rStats').innerHTML=[['FC media',fmt(a.hr)+' <small>lpm</small>'],['Latidos en 30 s',a.beats],['RR más corto',fmt(a.rrMin)+' <small>ms</small>'],['RR más largo',fmt(a.rrMax)+' <small>ms</small>'],['RMSSD',fmt(a.rmssd)+' <small>ms</small>'],['Frec. resp. (est.)',a.resp?fmt(a.resp)+' <small>/min</small>':'–']].map(([k,v])=>'<div><span>'+k+'</span><b>'+v+'</b></div>').join('');
+  renderDesc(a); drawReview(); }
+function drawReview(){ const item=ecg.review, c=$('#ecgRev'); if(!item||c.offsetParent===null)return; const W=c.clientWidth||600, rowSec=W>=700?10:5, pxs=W/rowSec, pxmv=pxs*0.4, rowH=Math.round(pxmv*3), rows=Math.ceil(item.s.length/FS/rowSec);
+  const {g}=sizeCanvas(c,rows*rowH+(rows-1)*6); const an=analyzeEcg(item.s), pk=an.peaks, cs=getComputedStyle(document.documentElement);
+  for(let r=0;r<rows;r++){ const a=r*rowSec*FS, seg=item.s.slice(a,a+rowSec*FS), y0=r*(rowH+6); paper(g,0,y0,W,rowH,pxs,pxmv); trace(g,seg,0,y0+rowH*0.55,pxs,pxmv,median(seg));
+    pk.forEach((p,pi)=>{ if(!(p>=a&&p<a+rowSec*FS))return; g.fillStyle=an.flags.has(pi)?'#E8890C':cs.getPropertyValue('--rmark').trim(); const X=(p-a)/FS*pxs; g.beginPath(); g.moveTo(X-4,y0+2); g.lineTo(X+4,y0+2); g.lineTo(X,y0+8); g.fill(); });
+    g.fillStyle=cs.getPropertyValue('--muted').trim(); g.font='11px '+cs.getPropertyValue('--body'); g.textAlign='left'; g.fillText((r*rowSec)+' s',4,y0+rowH-5); } }
+function ecgPdf(item){
+  const J=window.jspdf&&window.jspdf.jsPDF; if(!J){ $('#rMsg').textContent='No se pudo cargar el generador de PDF: revisá la conexión a internet y recargá la página.'; return; }
+  const a=analyzeEcg(item.s), pk=a.peaks, mx=hrmaxOf(item.jugador);
+  const doc=new J({orientation:'landscape',unit:'mm',format:'a4'}); const W=297;
+  const f=new Date(item.fecha), fecha=f.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+f.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(20,28,38); doc.text('Electrocardiograma',12,15);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(90,100,115); doc.text('TrakFC  |  '+fecha,W-12,15,{align:'right'});
+  doc.setFontSize(12); doc.setTextColor(20,28,38); doc.setFont('helvetica','bold'); doc.text(item.jugador,12,23);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(90,100,115); doc.text('Banda: '+item.banda+'   |   FC máxima de referencia: '+mx+' lpm',12,28.5);
+  const st=[['FC media',fmt(a.hr)+' lpm'],['Latidos en 30 s',String(a.beats)],['RR más corto',fmt(a.rrMin)+' ms'],['RR más largo',fmt(a.rrMax)+' ms'],['RMSSD',fmt(a.rmssd)+' ms'],['Frec. resp. (est.)',a.resp?fmt(a.resp)+' /min':'-']];
+  st.forEach(([k,v],i)=>{ const x=12+i*46.5; doc.setFillColor(242,245,248); doc.roundedRect(x,32,43,14,2,2,'F'); doc.setFontSize(7.5); doc.setTextColor(90,100,115); doc.text(k.toUpperCase(),x+3,37); doc.setFontSize(12.5); doc.setTextColor(20,28,38); doc.setFont('helvetica','bold'); doc.text(v,x+3,43.5); doc.setFont('helvetica','normal'); });
+  // tiras: 25 mm/s, 10 mm/mV
+  const x0=22, sw=250, rowH=35, gap=4; let y0=50;
+  for(let r=0;r<3;r++){
+    const a0=r*10*FS, seg=item.s.slice(a0,a0+10*FS); if(!seg.length)break;
+    doc.setFillColor(255,246,244); doc.rect(x0,y0,sw,rowH,'F');
+    for(let i=0;i<=sw;i+=1){ const major=i%5===0; doc.setDrawColor(...(major?[236,160,152]:[248,214,209])); doc.setLineWidth(major?0.2:0.08); doc.line(x0+i,y0,x0+i,y0+rowH); }
+    for(let j=0;j<=rowH;j+=1){ const major=j%5===0; doc.setDrawColor(...(major?[236,160,152]:[248,214,209])); doc.setLineWidth(major?0.2:0.08); doc.line(x0,y0+j,x0+sw,y0+j); }
+    const base=median(seg), mid=y0+rowH*0.6;
+    // pulso de calibración 1 mV
+    doc.setDrawColor(20,20,20); doc.setLineWidth(0.3); doc.lines([[2,0],[0,-10],[5,0],[0,10],[1,0]],12,mid,[1,1],'S',false);
+    const pts=[]; for(let i=1;i<seg.length;i++){ pts.push([25/FS,-(seg[i]-seg[i-1])/1000*10]); }
+    let yStart=mid-(seg[0]-base)/1000*10; doc.setLineWidth(0.25); doc.lines(pts,x0,yStart,[1,1],'S',false);
+    pk.forEach((p,pi)=>{ if(!(p>=a0&&p<a0+10*FS))return; if(a.flags.has(pi)) doc.setFillColor(232,137,12); else doc.setFillColor(200,50,59); const X=x0+(p-a0)/FS*25; doc.triangle(X-0.9,y0+0.6,X+0.9,y0+0.6,X,y0+2.2,'F'); });
+    doc.setFontSize(7.5); doc.setTextColor(120,110,110); doc.text((r*10)+' s',x0+1,y0+rowH-1.5);
+    y0+=rowH+gap; }
+  const d=describeEcg(a); let ty=y0+2;
+  doc.setFontSize(9.5); doc.setTextColor(20,28,38); doc.setFont('helvetica','bold'); doc.text('Descripción del registro:',12,ty);
+  const col=d.level==='ok'?[46,154,91]:d.level==='rev'?[227,160,8]:[150,158,170]; doc.setFillColor(...col); const lw=doc.getTextWidth(d.label)+6; doc.roundedRect(58,ty-3.6,lw,5,2,2,'F'); doc.setTextColor(d.level==='rev'?31:255,d.level==='rev'?22:255,d.level==='rev'?0:255); doc.setFontSize(8.5); doc.text(d.label,61,ty);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(20,28,38); ty+=4.6;
+  const body=doc.splitTextToSize(d.lines.join('  '),272); doc.text(body,12,ty); ty+=body.length*3.8;
+  if(item.obs){ doc.setFont('helvetica','bold'); doc.text('Observaciones:',12,ty); doc.setFont('helvetica','normal'); doc.text(doc.splitTextToSize(item.obs,245),36,ty); }
+  doc.setFontSize(7.5); doc.setTextColor(110,118,130);
+  doc.text('25 mm/s  |  10 mm/mV  |  Derivación única de pecho  |  Muestreo 130 Hz. Las marcas rojas indican los latidos detectados y las naranjas, los que llegaron fuera de tiempo. El pulso de la izquierda equivale a 1 mV.',12,201);
+  doc.text('Registro generado por TrakFC con una banda deportiva. '+DESC_NOTE,12,205);
+  const pad=n=>String(n).padStart(2,'0'), name='ECG_'+item.jugador.replace(/[^\w-]+/g,'_')+'_'+f.getFullYear()+'-'+pad(f.getMonth()+1)+'-'+pad(f.getDate())+'_'+pad(f.getHours())+'-'+pad(f.getMinutes())+'.pdf';
+  const blob=doc.output('blob'); fileSave(blob,name,'application/pdf'); }
+async function fileSave(blob,name,type,msg){
+  msg=msg||$('#rMsg');
+  try{ const f=new File([blob],name,{type}); if(navigator.canShare&&navigator.canShare({files:[f]})){ await navigator.share({files:[f],title:name}); return; } }catch(e){ if(e&&e.name==='AbortError')return; }
+  try{ const url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); msg.textContent='Informe generado: '+name; }catch(e){ msg.textContent='No se pudo guardar el archivo en este navegador.'; } }
+function renderEcgSaved(){ $('#eSavedWrap').hidden=!ecgSaved.length;
+  $('#eSaved').innerHTML=ecgSaved.map(x=>'<tr data-ecg="'+x.id+'"><td>'+new Date(x.fecha).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'})+'</td><td>'+esc(x.jugador)+'</td><td class="num">'+fmt(x.hr)+'</td><td>'+x.beats+'</td><td class="num">'+fmt(x.rmssd)+'</td></tr>').join(''); }
+
+
+/* ---------- Historial: sesiones guardadas en este dispositivo ---------- */
+const DB={db:null,
+  open(){ return new Promise(res=>{ try{ const r=indexedDB.open('trakfc',1); r.onupgradeneeded=()=>r.result.createObjectStore('sessions',{keyPath:'id'}); r.onsuccess=()=>{this.db=r.result;res(this.db)}; r.onerror=()=>res(null); }catch(e){res(null)} }); },
+  async tx(mode,fn){ if(!this.db) await this.open(); if(!this.db) return null; return new Promise(res=>{ try{ const t=this.db.transaction('sessions',mode), rq=fn(t.objectStore('sessions')); t.oncomplete=()=>res(rq?rq.result:true); t.onerror=t.onabort=()=>res(null); }catch(e){res(null)} }); },
+  put(x){return this.tx('readwrite',st=>st.put(x))}, all(){return this.tx('readonly',st=>st.getAll())}, del(id){return this.tx('readwrite',st=>st.delete(id))} };
+let histList=[], histCur=null, lastSnap=0;
+function snapshot(){ const {rows,blocks}=sessionData();
+  return {id:sess.t0,t0:sess.t0,saved:Date.now(),title:sess.title||'',obs:sess.obs||'',state:sess.state,dur:elapsed(),block:sess.block,blockStart:sess.blockStart,marks:sess.marks.slice(),
+    blocks,closedBlocks:closedBlocks.slice(),hrr:hrrList.slice(),history:history.slice(),hrmaxGen:cfg.hrmax,
+    players:rows.map(r=>({l:r.l,key:r.b.bandKey(),kind:r.b.kind,mx:r.mx,s:r.s,acc:r.b.acc,bacc:r.b.bacc,samples:r.b.samples,lastS:r.b.lastS,hrrLast:r.b.hrrLast||null}))}; }
+async function saveSession(){ if(demoMode||!sess.t0||sess.state==='idle')return; lastSnap=Date.now(); const ok=await DB.put(snapshot()); if(!ok) log('Historial: no se pudo guardar en este dispositivo'); }
+setInterval(()=>{ if((sess.state==='running'||sess.state==='paused')&&Date.now()-lastSnap>=10000) saveSession(); },2000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden'&&(sess.state==='running'||sess.state==='paused')) saveSession(); });
+window.addEventListener('pagehide',()=>{ if(sess.state==='running'||sess.state==='paused') saveSession(); });
+async function resumeSession(){ const all=(await DB.all())||[];
+  const open=all.filter(x=>x.state==='running'||x.state==='paused').sort((a,b)=>b.saved-a.saved);
+  for(const x of open.slice(1)){ x.state='done'; await DB.put(x); }
+  const s=open[0]; if(!s) return;
+  if(Date.now()-s.saved>15*60000){ s.state='done'; await DB.put(s); return; }
+  sess.t0=s.t0; sess.accum=s.dur*1000; sess.since=Date.now(); sess.state=s.state; sess.block=s.block; sess.blockStart=s.blockStart; sess.marks=s.marks||[];
+  sess.title=s.title||''; $('#sTitle').value=sess.title; sess.obs=s.obs||''; $('#sObs').value=sess.obs;
+  closedBlocks=s.closedBlocks||[]; hrrList=s.hrr||[]; history=s.history||[];
+  for(const p of s.players||[]) resumeAcc.set(p.key,p);
+  for(const b of bands.values()){ const r=resumeAcc.get(b.bandKey()); if(r){ b.acc=r.acc; b.bacc=r.bacc||accZero(); b.samples=r.samples||[]; b.lastS=r.lastS??-99; resumeAcc.delete(b.bandKey()); } }
+  log('Sesión retomada ('+hms(s.dur)+')'); toast('Sesión retomada: '+(s.title||'sin nombre')+' · '+hms(s.dur)); keepAwake(); setPlay(); render(); }
+function archCtx(s){ const nat=(x,y)=>x.l.localeCompare(y.l,'es',{numeric:true,sensitivity:'base'});
+  const rows=(s.players||[]).map(p=>({b:{samples:p.samples||[],hrrLast:p.hrrLast,bandKey:()=>p.key,acc:p.acc},l:p.l,mx:p.mx,s:p.s})).sort((x,y)=>y.s.trimp-x.s.trimp||nat(x,y));
+  return {rows,blocks:s.blocks||[],dur:s.dur,t0:s.t0,title:s.title,state:'done',obs:s.obs,marks:s.marks||[],hrr:s.hrr||[]}; }
+function liveCtx(){ const d=sessionData(); return Object.assign(d,{dur:elapsed(),t0:sess.t0,title:sess.title,state:sess.state,obs:sess.obs,marks:sess.marks,hrr:hrrList}); }
+async function renderHist(){
+  if(histCur){ renderHistDet(); return; }
+  $('#hList').hidden=false; $('#hDet').hidden=true;
+  histList=((await DB.all())||[]).sort((a,b)=>b.t0-a.t0);
+  $('#hInfo').textContent=histList.length?histList.length+(histList.length===1?' sesión':' sesiones'):'';
+  $('#histBody').innerHTML=histList.length?histList.map(s=>{ const pl=s.players||[], avg=pl.length?pl.reduce((a,p)=>a+p.s.trimp,0)/pl.length:null, cur=(sess.state==='running'||sess.state==='paused')&&sess.t0===s.id;
+    return '<tr><td>'+new Date(s.t0).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'})+'</td><td>'+esc(s.title||'Sin nombre')+(cur?' <span class="chip ok">en curso</span>':'')+'</td><td>'+hms(s.dur)+'</td><td class="num">'+pl.length+'</td><td class="num">'+(s.block||1)+'</td><td class="num">'+fmt(avg)+'</td><td><button class="btn" type="button" data-hopen="'+s.id+'">Ver</button></td></tr>'; }).join('')
+    :'<tr><td colspan="7" class="small" style="padding:18px">Todavía no hay sesiones guardadas. Tocá Iniciar: la sesión se guarda sola mientras entrenan.</td></tr>';
+}
+function renderHistDet(){ const s=histCur; if(!s)return; const C=archCtx(s);
+  $('#hList').hidden=true; $('#hDet').hidden=false;
+  $('#hTitle').textContent=s.title||'Sesión sin nombre';
+  $('#hMeta').textContent=new Date(s.t0).toLocaleString('es-AR',{dateStyle:'full',timeStyle:'short'})+' · '+hms(s.dur)+' · '+C.rows.length+' jugadores'+(s.obs?' · '+s.obs:'');
+  $('#hSum').innerHTML=C.rows.map(r=>{ const x=r.s; return '<tr><td>'+esc(r.l)+'</td><td>'+mmss(x.t)+'</td><td class="num">'+fmt(x.avg)+'</td><td class="num">'+fmt(x.max)+'</td><td>'+(x.pmax?Math.round(x.pmax*100)+'%':'–')+'</td>'+
+    '<td class="zcol">'+zbar(x.z)+'<div class="zl">'+[1,2,3,4,5].map(k=>'<span>'+mmss(x.z[k])+'</span>').join('')+'</div></td><td>'+mmss(x.z[4])+'</td><td>'+mmss(x.z[5])+'</td><td class="num">'+fmt(x.trimp)+'</td><td class="num">'+fmt(x.kcal)+'</td><td>'+effHtml(x.eff)+'</td><td>'+(r.b.hrrLast?dropTxt(r.b.hrrLast.drop):'–')+'</td></tr>'; }).join('');
+  const bl=C.blocks.filter(c=>C.blocks.some(d=>d.bloque!==c.bloque)); $('#hBlkWrap').hidden=!bl.length;
+  $('#hBlk').innerHTML=bl.map(c=>'<tr><td>'+esc(c.jugador)+'</td><td>'+c.bloque+'</td><td>'+mmss(c.duracion)+'</td><td class="num">'+fmt(c.avg)+'</td><td class="num">'+fmt(c.max)+'</td><td>'+mmss(c.z4)+'</td><td>'+mmss(c.z5)+'</td><td class="num">'+fmt(c.trimp)+'</td><td class="num">'+fmt(c.kcal)+'</td><td>'+effHtml(c.eff)+'</td></tr>').join('');
+  $('#hDel').disabled=(sess.state==='running'||sess.state==='paused')&&sess.t0===s.id;
+  drawHistChart(s,C); }
+function drawHistChart(s,C){ const c=$('#hChart'); if(!c||c.offsetParent===null)return; const dpr=window.devicePixelRatio||1, W=c.clientWidth||600, H=220;
+  c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); c.style.height=H+'px'; const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0);
+  const cs=getComputedStyle(document.documentElement), col=n=>cs.getPropertyValue(n).trim(), P={l:40,r:10,t:10,b:22}, T=Math.max(60,s.dur);
+  const X=t=>P.l+t/T*(W-P.l-P.r), lo=40, hi=105, Y=v=>P.t+(1-(v-lo)/(hi-lo))*(H-P.t-P.b);
+  [[50,60,1],[60,70,2],[70,80,3],[80,90,4],[90,105,5]].forEach(([a,b,z])=>{ g.fillStyle=col('--z'+z); g.globalAlpha=.16; g.fillRect(P.l,Y(b),W-P.l-P.r,Y(a)-Y(b)); });
+  g.globalAlpha=1; g.fillStyle=col('--muted'); g.font='12px '+col('--body');
+  [50,60,70,80,90,100].forEach(v=>g.fillText(v+'%',4,Y(v)+4));
+  const step=[60,300,600,900,1800,3600].find(x=>T/x<=8)||3600; for(let t=0;t<=T;t+=step) g.fillText(mmss(t),X(t)-12,H-6);
+  g.setLineDash([4,4]); g.strokeStyle=col('--fg'); (C.marks||[]).forEach((m,i)=>{ g.beginPath(); g.moveTo(X(m),P.t); g.lineTo(X(m),H-P.b); g.stroke(); g.fillStyle=col('--fg'); g.fillText('B'+(i+2),X(m)+3,P.t+11); }); g.setLineDash([]);
+  const bin=Math.max(5,Math.ceil(T/((W-P.l-P.r)/2))), acc=new Map();
+  for(const r of C.rows) for(const [t,hr] of r.b.samples){ const k=Math.floor(t/bin); const a=acc.get(k)||[0,0]; a[0]+=hr/r.mx*100; a[1]++; acc.set(k,a); }
+  g.strokeStyle=col('--accent'); g.lineWidth=2; g.beginPath(); let pen=false, prev=-9;
+  [...acc.keys()].sort((a,b)=>a-b).forEach(k=>{ const [sum,n]=acc.get(k), x=X((k+.5)*bin), y=Y(Math.max(lo,Math.min(hi,sum/n))); if(pen&&k-prev<=2) g.lineTo(x,y); else g.moveTo(x,y); pen=true; prev=k; });
+  g.stroke(); g.fillStyle=col('--muted'); g.fillText('% FC máx medio del equipo',P.l+6,P.t+12); }
+function histCsv(s){ const C=archCtx(s);
+  const sum=C.rows.map(r=>{ const x=r.s; return {jugador:r.l,banda:r.b.bandKey().slice(3),fc_max_config:r.mx,tiempo:hms(x.t),fc_media:Math.round(x.avg||0),fc_max:x.max,pct_max:Math.round((x.pmax||0)*100),z1:mmss(x.z[1]),z2:mmss(x.z[2]),z3:mmss(x.z[3]),z4:mmss(x.z[4]),z5:mmss(x.z[5]),carga:Math.round(x.trimp),kcal:Math.round(x.kcal||0),esfuerzo:x.eff}; });
+  const blk=C.blocks.map(c=>({jugador:c.jugador,bloque:c.bloque,duracion:mmss(c.duracion),fc_media:Math.round(c.avg||0),fc_max:c.max,z4:mmss(c.z4),z5:mmss(c.z5),carga:Math.round(c.trimp),kcal:Math.round(c.kcal||0),esfuerzo:c.eff}));
+  const hr_=C.hrr.map(h=>({jugador:h.jugador,momento:h.momento,bloque:h.bloque,fc_al_terminar:h.start,fc_60s:h.end,recuperacion_lpm:h.drop}));
+  const csv=[toCsv(sum),toCsv(blk),toCsv(hr_),toCsv(s.history||[])].filter(Boolean).join('\n\n');
+  csvSave(csv,'trakfc_'+(s.title||'sesion').replace(/[^\w-]+/g,'_')+'_'+new Date(s.t0).toISOString().slice(0,16).replace(/[:T]/g,'-')+'.csv'); }
+
+/* ---------- Informe PDF de la sesión ---------- */
+const ZRGB=[[200,207,216],[110,123,138],[47,127,193],[46,154,91],[227,160,8],[210,52,62]];
+const lightRgb=(c,k)=>c.map(v=>Math.round(255-(255-v)*k));
+function sessionData(){
+  const nat=(x,y)=>x.l.localeCompare(y.l,'es',{numeric:true,sensitivity:'base'});
+  const rows=[...bands.values()].filter(b=>!b.removed&&b.acc.t>0).map(b=>{ const l=label(b); return {b,l,mx:hrmaxOf(l),s:stats(b.acc,l)}; });
+  rows.sort(sortMode==='red'?(x,y)=>y.s.z[5]-x.s.z[5]||nat(x,y):(sortMode==='load'||sortMode==='pct')?(x,y)=>y.s.trimp-x.s.trimp||nat(x,y):nat);
+  const blocks=closedBlocks.slice();
+  if(sess.state==='running'||sess.state==='paused'){ const dur=elapsed()-sess.blockStart;
+    for(const r of rows){ if(r.b.bacc.t<=0)continue; const s=stats(r.b.bacc,r.l); blocks.push({jugador:r.l,bloque:sess.block,duracion:dur,avg:s.avg,max:s.max,z4:s.z[4],z5:s.z[5],trimp:s.trimp,kcal:s.kcal,eff:s.eff}); } }
+  return {rows,blocks}; }
+function sessionPdf(snap){
+  const msg=snap?$('#hMsg'):$('#sMsg'), J=window.jspdf&&window.jspdf.jsPDF;
+  if(!J){ msg.textContent='No se pudo cargar el generador de PDF: revisá la conexión a internet y recargá la página.'; return; }
+  const C=snap?archCtx(snap):liveCtx(); const {rows,blocks}=C; if(!rows.length){ msg.textContent='Todavía no hay datos: iniciá una sesión.'; return; }
+  const doc=new J({orientation:'landscape',unit:'mm',format:'a4'}), W=297, M=12, CW=W-2*M, BOT=194; let RH=6.2;
+  const ink=()=>doc.setTextColor(20,28,38), mut=()=>doc.setTextColor(90,100,115);
+  const dur=C.dur, t0=new Date(C.t0||Date.now()-dur*1000), pad=n=>String(n).padStart(2,'0');
+  const fecha=t0.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+pad(t0.getHours())+':'+pad(t0.getMinutes());
+  const title=(C.title||'').trim()||'Sesión de entrenamiento';
+  const blkNums=[...new Set(blocks.map(b=>b.bloque))].sort((a,b)=>a-b), nBlk=blkNums.length||1;
+  const avgOf=(arr,f)=>arr.length?arr.reduce((a,r)=>a+f(r),0)/arr.length:0;
+  const dropP=d=>d>=0?'-'+d:'+'+(-d);
+  const effP=e=>e?e+' '+effLabel(e):'–';
+  let y=0, first=true;
+  const head=sub=>{ doc.setFont('helvetica','bold'); doc.setFontSize(16); ink(); doc.text(sub,M,15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); mut(); doc.text('TrakFC  |  '+fecha,W-M,15,{align:'right'});
+    if(first){ first=false; y=22; } else { doc.setFontSize(9); mut(); doc.text(title,M,21); y=25; } };
+  const zbarP=(z,x,yy,w,h)=>{ doc.setFillColor(232,236,241); doc.rect(x,yy,w,h,'F'); const tot=z.slice(1).reduce((a,b)=>a+b,0); if(!tot)return; let xx=x;
+    for(let k=1;k<=5;k++){ const ww=z[k]/tot*w; if(ww>0){ doc.setFillColor(...ZRGB[k]); doc.rect(xx,yy,ww,h,'F'); xx+=ww; } } };
+  // tabla genérica: cols = [titulo, ancho, alineación 'l'|'c'|'r']; una celda con un array dibuja la barra de zonas
+  const table=(cols,data,sub,boldLast)=>{ const TW=cols.reduce((a,c)=>a+c[1],0);
+    const th=()=>{ doc.setFillColor(29,42,56); doc.rect(M,y,TW,6.5,'F'); doc.setFontSize(7.3); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); let x=M;
+      cols.forEach(([n,w,a])=>{ const t=n.toUpperCase(); if(a==='l') doc.text(t,x+2,y+4.4); else if(a==='c') doc.text(t,x+w/2,y+4.4,{align:'center'}); else doc.text(t,x+w-2,y+4.4,{align:'right'}); x+=w; });
+      doc.setFont('helvetica','normal'); y+=6.5; };
+    if(y+6.5+RH>BOT){ doc.addPage(); head(sub); }
+    th();
+    data.forEach((vals,i)=>{ if(y+RH>BOT){ doc.addPage(); head(sub); th(); }
+      const bold=boldLast&&i===data.length-1;
+      if(bold){ doc.setFillColor(226,232,239); doc.rect(M,y,TW,RH,'F'); } else if(i%2===1){ doc.setFillColor(245,247,250); doc.rect(M,y,TW,RH,'F'); }
+      doc.setFontSize(8.5); ink(); doc.setFont('helvetica',bold?'bold':'normal'); let x=M;
+      cols.forEach(([n,w,a],ci)=>{ const v=vals[ci];
+        if(Array.isArray(v)) zbarP(v,x+2,y+RH/2-1.5,w-4,3);
+        else if(a==='l') doc.text(doc.splitTextToSize(String(v),w-3)[0]||'',x+2,y+RH/2+1.2);
+        else if(a==='c') doc.text(String(v),x+w/2,y+RH/2+1.2,{align:'center'});
+        else doc.text(String(v),x+w-2,y+RH/2+1.2,{align:'right'}); x+=w; });
+      doc.setFont('helvetica','normal'); y+=RH; }); };
+  const section=(t,h,sub)=>{ if(y+8+h>BOT){ doc.addPage(); head(sub); } else y+=5; doc.setFontSize(10.5); ink(); doc.setFont('helvetica','bold'); doc.text(t,M,y+3); doc.setFont('helvetica','normal'); y+=6; };
+
+  // Página 1: resumen
+  head('Informe de sesión');
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); ink(); doc.text(title,M,23);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); mut();
+  doc.text('Duración '+hms(dur)+'   |   '+rows.length+' jugadores   |   '+nBlk+(nBlk===1?' bloque':' bloques')+'   |   FC máxima general: '+cfg.hrmax+' lpm'+(C.state==='done'?'':'   |   sesión en curso'),M,28.5);
+  const cards=[['Duración',hms(dur)],['Jugadores',String(rows.length)],['FC media equipo',fmt(avgOf(rows,r=>r.s.avg||0))+' lpm'],['Carga media',fmt(avgOf(rows,r=>r.s.trimp))],['Z4 + Z5 medio',mmss(avgOf(rows,r=>r.s.z[4]+r.s.z[5]))],['Kcal medias',fmt(avgOf(rows,r=>r.s.kcal))]];
+  const cw=(CW-5*3.5)/6;
+  cards.forEach(([k,v],i)=>{ const x=M+i*(cw+3.5); doc.setFillColor(242,245,248); doc.roundedRect(x,32,cw,14,2,2,'F'); doc.setFontSize(7.5); mut(); doc.text(k.toUpperCase(),x+3,37); doc.setFontSize(12.5); ink(); doc.setFont('helvetica','bold'); doc.text(v,x+3,43.5); doc.setFont('helvetica','normal'); });
+  const zt=[1,2,3,4,5].map(k=>rows.reduce((a,r)=>a+r.s.z[k],0)), ztot=zt.reduce((a,b)=>a+b,0)||1;
+  y=53; doc.setFontSize(9); ink(); doc.setFont('helvetica','bold'); doc.text('Tiempo del equipo por zona',M,y); doc.setFont('helvetica','normal');
+  y+=2; let zx=M; zt.forEach((t,i)=>{ const w=t/ztot*CW; if(w<=0)return; doc.setFillColor(...ZRGB[i+1]); doc.rect(zx,y,w,6,'F');
+    if(w>16){ doc.setFontSize(7.5); if(i===3) doc.setTextColor(31,22,0); else doc.setTextColor(255,255,255); doc.text(ZN[i+1]+' '+Math.round(t/ztot*100)+'%',zx+w/2,y+4.2,{align:'center'}); } zx+=w; });
+  y+=11;
+  const obs=(C.obs||'').trim();
+  if(obs){ doc.setFontSize(9); const lines=doc.splitTextToSize(obs,CW-28); ink(); doc.setFont('helvetica','bold'); doc.text('Observaciones:',M,y); doc.setFont('helvetica','normal'); doc.text(lines,M+26,y); y+=lines.length*4+2.5; }
+  RH=Math.max(5.2,Math.min(6.2,(BOT-y-6.5)/(rows.length+1)));
+  const tz=[0,1,2,3,4,5].map(k=>avgOf(rows,r=>r.s.z[k]));
+  const main=rows.map(r=>{ const s=r.s; return [r.l,mmss(s.t),fmt(s.avg),fmt(s.max),s.pmax?Math.round(s.pmax*100)+'%':'–',s.z,mmss(s.z[4]),mmss(s.z[5]),fmt(s.trimp),fmt(s.kcal),effP(s.eff),r.b.hrrLast?dropP(r.b.hrrLast.drop)+' lpm':'–']; });
+  main.push(['Promedio del equipo',mmss(avgOf(rows,r=>r.s.t)),fmt(avgOf(rows,r=>r.s.avg||0)),fmt(avgOf(rows,r=>r.s.max||0)),Math.round(avgOf(rows,r=>r.s.pmax||0)*100)+'%',tz,mmss(tz[4]),mmss(tz[5]),fmt(avgOf(rows,r=>r.s.trimp)),fmt(avgOf(rows,r=>r.s.kcal)),effP(effortOf(avgOf(rows,r=>r.s.trimp))),'']);
+  table([['Jugador',50,'l'],['Tiempo',16],['FC media',16],['FC máx',15],['% máx',13],['Tiempo por zona',62,'c'],['Z4',15],['Z5',15],['Carga',15],['Kcal',15],['Esfuerzo',22],['Recup. 60 s',19]],main,'Informe de sesión (cont.)',true);
+  RH=6.2;
+
+  // Curvas de FC por jugador
+  const COLS=4, ROWS=5, gx=5, gy=3.5, tEnd=Math.max(60,dur), curveSub='Curvas de frecuencia cardíaca';
+  const curveHead=s=>{ doc.addPage(); head(s); doc.setFontSize(7.5); mut(); doc.text('Bandas de color: zonas de cada jugador según su FC máxima. Líneas punteadas: cambio de bloque.',W-M,21,{align:'right'}); };
+  curveHead(curveSub);
+  const top0=y+1, cwid=(CW-(COLS-1)*gx)/COLS, chh=(BOT-top0-(ROWS-1)*gy)/ROWS;
+  rows.forEach((r,i)=>{ const pi=i%(COLS*ROWS); if(i&&pi===0) curveHead(curveSub+' (cont.)');
+    const x=M+(pi%COLS)*(cwid+gx), yy=top0+Math.floor(pi/COLS)*(chh+gy), mx=r.mx, lo=mx*0.4, py=yy+4.5, ph=chh-8, pw=cwid;
+    doc.setFontSize(8); ink(); doc.setFont('helvetica','bold'); doc.text(doc.splitTextToSize(r.l,pw*0.45)[0]||'',x,yy+3); doc.setFont('helvetica','normal');
+    doc.setFontSize(6.6); mut(); doc.text('media '+fmt(r.s.avg)+' · máx '+fmt(r.s.max)+' · carga '+fmt(r.s.trimp),x+pw,yy+3,{align:'right'});
+    const Y=v=>py+ph*(1-(Math.min(mx,Math.max(lo,v))-lo)/(mx-lo));
+    doc.setFillColor(248,249,251); doc.rect(x,py,pw,ph,'F');
+    [[0.5,0.6,1],[0.6,0.7,2],[0.7,0.8,3],[0.8,0.9,4],[0.9,1,5]].forEach(([a,b,k])=>{ doc.setFillColor(...lightRgb(ZRGB[k],0.22)); doc.rect(x,Y(mx*b),pw,Y(mx*a)-Y(mx*b),'F'); });
+    if(C.marks&&C.marks.length){ doc.setDrawColor(120,128,140); doc.setLineWidth(0.15); doc.setLineDashPattern([0.8,0.8],0); C.marks.forEach(t=>{ const X=x+pw*t/tEnd; doc.line(X,py,X,py+ph); }); doc.setLineDashPattern([],0); }
+    const pts=r.b.samples;
+    if(pts.length>1){ const seg=[]; for(let k=1;k<pts.length;k++) seg.push([pw*(pts[k][0]-pts[k-1][0])/tEnd,Y(pts[k][1])-Y(pts[k-1][1])]); doc.setDrawColor(20,28,38); doc.setLineWidth(0.3); doc.lines(seg,x+pw*pts[0][0]/tEnd,Y(pts[0][1]),[1,1],'S',false); }
+    doc.setFontSize(5.8); mut(); doc.text(String(Math.round(mx*0.9)),x+0.8,Y(mx*0.9)+2.1); doc.text(String(Math.round(mx*0.6)),x+0.8,Y(mx*0.6)+2.1);
+    doc.text("0'",x,yy+chh-0.4); doc.text(Math.round(tEnd/60)+"'",x+pw,yy+chh-0.4,{align:'right'}); });
+
+  // Bloques y recuperación
+  if(blkNums.length>1||C.hrr.length){
+    const sub2=blkNums.length>1?(C.hrr.length?'Bloques y recuperación':'Bloques'):'Recuperación de la FC';
+    doc.addPage(); head(sub2);
+    if(blkNums.length>1){
+      section('Promedio del equipo por bloque',20,sub2+' (cont.)');
+      const bt=blkNums.map(n=>{ const bs=blocks.filter(b=>b.bloque===n); return ['Bloque '+n,mmss(bs[0].duracion),String(bs.length),fmt(avgOf(bs,b=>b.avg||0)),fmt(avgOf(bs,b=>b.max||0)),mmss(avgOf(bs,b=>b.z4)),mmss(avgOf(bs,b=>b.z5)),fmt(avgOf(bs,b=>b.trimp)),fmt(avgOf(bs,b=>b.kcal))]; });
+      table([['Bloque',33,'l'],['Duración',30],['Jugadores',30],['FC media',30],['FC máx media',34],['Z4 medio',29],['Z5 medio',29],['Carga media',29],['Kcal medias',29]],bt,sub2+' (cont.)',false);
+      section('Carga por jugador y bloque (carga · FC media)',20,sub2+' (cont.)');
+      const shown=blkNums.slice(0,10), bw=Math.min(32,(CW-50)/shown.length);
+      const mt=rows.map(r=>[r.l].concat(shown.map(n=>{ const c=blocks.find(b=>b.jugador===r.l&&b.bloque===n); return c?fmt(c.trimp)+' · '+fmt(c.avg):'–'; })));
+      table([['Jugador',50,'l']].concat(shown.map(n=>['Bloque '+n,bw,'c'])),mt,sub2+' (cont.)',false);
+      if(blkNums.length>shown.length){ y+=4; doc.setFontSize(8); mut(); doc.text('Se muestran los primeros '+shown.length+' bloques de '+blkNums.length+'. El detalle completo está en el CSV.',M,y); }
     }
-    if (ecg.status === 1 && t - ecg.t > 1.5) ecg.status = 2;
-    if (ecg.status === 2){
-      const need = Math.floor((t - ecg.t) * 130);
-      while (ecg.seq < need){
-        const tt = ecg.seq / 130; ecgPh += (ecgHr + 4 * Math.sin(tt / 3)) / 60 / 130; const p = ecgPh % 1;
-        const g = (c, w, a) => a * Math.exp(-((p - c) ** 2) / (2 * w * w));
-        const v = g(.18,.025,120) + g(.285,.008,-110) + g(.30,.010,1150) + g(.318,.009,-260) + g(.52,.05,300)
-          + 260 * Math.sin(2 * Math.PI * .25 * tt) + 900 + (Math.random() - 0.5) * 30;
-        ecgBuf.push(Math.round(v)); ecg.seq++;
-        if (ecgBuf.length > 2600) ecgBuf.shift();
-      }
-    }
+    if(C.hrr.length){
+      section('Recuperación de la FC (60 s)',20,sub2+' (cont.)');
+      const ht=C.hrr.map(h=>{ const avg=hrrAvg(h.jugador,h.fecha), low=avg!=null&&h.drop<avg*0.8; return [h.jugador,h.momento,String(h.bloque),String(h.start),String(h.end),dropP(h.drop)+' lpm',avg!=null?'-'+fmt(avg)+' lpm':'–',avg==null?'sin promedio':low?'menor que su promedio':'normal']; });
+      table([['Jugador',50,'l'],['Momento',28],['Bloque',22],['FC al terminar',32],['FC a los 60 s',32],['Bajó',27],['Su promedio',30],['Estado',52,'l']],ht,sub2+' (cont.)',false);
+      y+=4; doc.setFontSize(8); mut(); doc.text('Cuánto baja la FC en el primer minuto después de cortar el esfuerzo. Se compara con el promedio de las últimas 5 mediciones del jugador.',M,y); }
   }
-  function q(path){ const u = new URL(path, "http://x"); return {p:u.pathname, a:u.searchParams}; }
-  return {
-    async handle(path){
-      step();
-      const {p, a} = q(path);
-      if (p === "/api/state") return JSON.parse(JSON.stringify({up:Math.round(now()*1000), maxConn:9, onlyAssigned, ecg:{status:ecg.status, err:0, band:ecg.band, seq:ecg.seq},
-        bands:bands.map(b => ({id:b.id, mac:b.mac, dev:b.dev, name:b.name, hrmax:b.hrmax, conn:b.conn, hr:b.conn ? b.hr : 0, age:300, contact:b.contact, bat:b.bat, rssi:b.rssi, h10:b.h10, rr:b.rr, rrSeq:b.rrSeq}))}));
-      if (p === "/api/rr"){
-        const b = bands[+a.get("id")]; let since = +a.get("since");
-        const first = b.rrSeq - b._rr.length; if (since < first) since = first;
-        return {seq:b.rrSeq, from:since, rr:b._rr.slice(since - first)};
-      }
-      if (p === "/api/ecg"){
-        let since = +a.get("since"); const first = ecg.seq - ecgBuf.length; if (since < first) since = first;
-        return {seq:ecg.seq, from:since, fs:130, s:ecgBuf.slice(since - first)};
-      }
-      if (p === "/api/ecg/start"){ ecg = {status:1, err:0, band:+a.get("id"), seq:0, t:now() + 1.5}; ecgBuf = []; ecgPh = 0; return {ok:true}; }
-      if (p === "/api/ecg/stop"){ ecg.status = 0; ecg.band = -1; return {ok:true}; }
-      if (p === "/api/assign"){ const b = bands.find(x => x.mac === a.get("mac")); if (b){ b.name = a.get("name"); b.hrmax = +a.get("hrmax") || 0; } return {ok:true}; }
-      if (p === "/api/settings"){ onlyAssigned = a.get("onlyAssigned") === "1"; return {ok:true}; }
-      if (p === "/api/disconnect"){ const b = bands[+a.get("id")]; if (b){ b.conn = 0; setTimeout(() => b.conn = 1, 6000); } return {ok:true}; }
-      throw new Error("404");
-    }
-  };
+
+  // Pie en todas las páginas
+  const n=doc.getNumberOfPages(), gen=new Date();
+  for(let p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(7.2); doc.setTextColor(110,118,130);
+    doc.text('Zonas por % de FC máxima: Z1 50-60 · Z2 60-70 · Z3 70-80 · Z4 80-90 · Z5 90-100. Carga: TRIMP de Edwards (minutos en cada zona x 1 a 5). Kcal activas: estimación de Keytel. Recup. 60 s: cuánto bajó la FC en el primer minuto.',M,201);
+    doc.text('Generado por TrakFC el '+gen.toLocaleDateString('es-AR')+' a las '+pad(gen.getHours())+':'+pad(gen.getMinutes())+'.',M,205.5);
+    doc.text('Página '+p+' de '+n,W-M,205.5,{align:'right'}); }
+  const safe=title.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||'Sesion';
+  const name='Sesion_'+safe+'_'+t0.getFullYear()+'-'+pad(t0.getMonth()+1)+'-'+pad(t0.getDate())+'_'+pad(t0.getHours())+'-'+pad(t0.getMinutes())+'.pdf';
+  msg.textContent='';
+  fileSave(doc.output('blob'),name,'application/pdf',msg); }
+
+/* ---------- VFC: intervalos RR y test ---------- */
+function pushRR(b,ms){ if(!(ms>0))return; b.rrAt=Date.now(); b.rrLive=b.rrLive||[]; b.rrLive.push(ms); if(b.rrLive.length>120)b.rrLive.shift();
+  if(hrv.state==='running'){ const e=hrv.data[b.key]||(hrv.data[b.key]={b,rr:[]}); e.rr.push(ms); } }
+function cleanRR(rr){ const v=rr.filter(x=>x>=300&&x<=2000); const nn=[]; for(let i=0;i<v.length;i++){ const w=v.slice(Math.max(0,i-2),i+3), m=median(w); if(Math.abs(v[i]-m)<=0.2*m) nn.push(v[i]); }
+  return {nn,art:rr.length?1-nn.length/rr.length:0}; }
+function hrvStats(nn){ if(nn.length<3) return {rmssd:null,ln:null,sdnn:null,hr:nn.length?60000/(nn.reduce((a,b)=>a+b,0)/nn.length):null};
+  let ss=0; for(let i=1;i<nn.length;i++) ss+=(nn[i]-nn[i-1])**2; const rmssd=Math.sqrt(ss/(nn.length-1)), mean=nn.reduce((a,b)=>a+b,0)/nn.length;
+  const sdnn=Math.sqrt(nn.reduce((a,b)=>a+(b-mean)**2,0)/(nn.length-1)); return {rmssd,ln:Math.log(rmssd),sdnn,hr:60000/mean}; }
+const hrv={state:'idle',start:0,dur:180,pos:'Sentado',data:{},timer:0,res:[]};
+let hrvHist=store.get('trakfc.hrv',[]);
+function baseline(jugador,before){ const prev=hrvHist.filter(h=>h.jugador===jugador&&h.fecha<before&&h.ln!=null).sort((a,b)=>a.fecha<b.fecha?1:-1).slice(0,7);
+  if(prev.length<3) return {n:prev.length}; const m=prev.reduce((a,h)=>a+h.ln,0)/prev.length, sd=Math.sqrt(prev.reduce((a,h)=>a+(h.ln-m)**2,0)/(prev.length-1)); return {n:prev.length,m,sd}; }
+function vsBase(h){ const bl=baseline(h.jugador,h.fecha); if(bl.m==null) return '<span class="chip na">sin base ('+bl.n+'/3)</span>';
+  const d=h.ln-bl.m, swc=0.5*bl.sd; return d<-swc?'<span class="chip low">por debajo</span>':d>swc?'<span class="chip high">por encima</span>':'<span class="chip ok">normal</span>'; }
+function hrvStart(){ if(hrv.state==='running'){ clearInterval(hrv.timer); hrv.state='idle'; hrv.data={}; log('Test de VFC cancelado'); renderEcgView(); return; }
+  hrv.dur=+$('#hDur').value; hrv.pos=$('#hPos').value; hrv.data={}; hrv.start=Date.now(); hrv.state='running'; hrv.res=[]; $('#hResWrap').hidden=true; keepAwake();
+  for(const b of bands.values()) if(!b.removed&&live(b)) hrv.data[b.key]={b,rr:[]};
+  log('Test de VFC iniciado:',hrv.dur/60,'min,',hrv.pos);
+  hrv.timer=setInterval(()=>{ const e=(Date.now()-hrv.start)/1000; $('#hProg i').style.width=Math.min(100,e/hrv.dur*100).toFixed(1)+'%'; $('#hGo').textContent='Cancelar ('+mmss(hrv.dur-e)+')'; if(e>=hrv.dur) hrvFinish(); },500);
+  renderEcgView(); }
+function hrvFinish(){ clearInterval(hrv.timer); hrv.state='done'; const fecha=new Date().toISOString(); hrv.res=[];
+  for(const e of Object.values(hrv.data)){ const c=cleanRR(e.rr), st=hrvStats(c.nn), jug=label(e.b);
+    const rp=respFromRR(e.rr); const h={fecha,jugador:jug,posicion:hrv.pos,dur:hrv.dur,hr:st.hr,rmssd:st.rmssd,ln:st.ln,sdnn:st.sdnn,n:c.nn.length,art:c.art,resp:rp};
+    if(c.nn.length>=30&&st.rmssd!=null){ hrvHist.push(h); hrv.res.push(h); } else hrv.res.push(Object.assign(h,{fail:true})); }
+  hrv.res.sort((x,y)=>x.jugador.localeCompare(y.jugador,'es',{numeric:true}));
+  hrvHist=hrvHist.slice(-3000); store.set('trakfc.hrv',hrvHist); log('Test de VFC terminado:',hrv.res.filter(r=>!r.fail).length,'jugadores'); $('#hGo').textContent='Iniciar test'; renderEcgView(); }
+function spark(rr){ if(rr.length<2)return '<svg viewBox="0 0 100 34" preserveAspectRatio="none"></svg>'; const a=rr.slice(-60), mn=Math.min(...a), mx=Math.max(...a), sp=Math.max(40,mx-mn);
+  return '<svg viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"><polyline points="'+a.map((v,i)=>(i/(a.length-1)*100).toFixed(1)+','+(31-(v-mn)/sp*28).toFixed(1)).join(' ')+'"/></svg>'; }
+function renderHrv(){
+  const running=hrv.state==='running'; $('#hProg').hidden=!running; if(!running) $('#hGo').textContent='Iniciar test'; $('#hDur').disabled=running; $('#hPos').disabled=running;
+  const list=[...bands.values()].filter(b=>!b.removed);
+  $('#hStat').textContent=running?'Midiendo '+Object.keys(hrv.data).length+' jugadores. Que estén quietos y sin hablar hasta que termine.':list.length?'Mide a todos los jugadores con banda conectada al mismo tiempo. Hacelo a la mañana, en reposo, siempre en la misma posición, respirando normal y sin hablar.':'Conectá las bandas para hacer el test. Abajo podés ver el historial guardado.';
+  $('#hLive').innerHTML=list.sort((a,b)=>label(a).localeCompare(label(b),'es',{numeric:true})).map(b=>{ const hasRR=b.rrAt&&Date.now()-b.rrAt<10000, e=hrv.data[b.key];
+    const src=running&&e?e.rr:(b.rrLive||[]), st=hrvStats(cleanRR(src.slice(-60)).nn);
+    return '<div class="hcard'+(hasRR?'':' off')+'"><span class="hn">'+esc(label(b))+'</span><span class="hv">'+(hasRR&&st.rmssd!=null?fmt(st.rmssd)+' <small>ms RMSSD</small>':'–')+'</span>'+
+      '<span class="hs">'+(hasRR?(running&&e?e.rr.length+' latidos medidos · ':'')+'último RR '+fmt(b.rrLive[b.rrLive.length-1])+' ms':(live(b)?'esta banda no manda intervalos RR':'sin señal'))+'</span>'+(hasRR?spark(src):'')+'</div>'; }).join('');
+  $('#hResWrap').hidden=!hrv.res.length;
+  $('#hRes').innerHTML=hrv.res.map(h=>h.fail?'<tr><td>'+esc(h.jugador)+'</td><td colspan="9" style="text-align:left;color:var(--muted)">Pocos latidos válidos ('+h.n+'): repetí el test con la banda bien húmeda</td></tr>':
+    '<tr><td>'+esc(h.jugador)+'</td><td class="num">'+fmt(h.hr)+'</td><td class="num">'+fmt(h.rmssd,1)+'</td><td>'+fmt(h.ln,2)+'</td><td>'+fmt(h.sdnn,1)+'</td><td>'+fmt(h.resp)+'</td><td>'+(h.hr?fmt(15.3*hrmaxOf(h.jugador)/h.hr):'–')+'</td><td>'+h.n+'</td><td>'+fmt(h.art*100)+'%</td><td>'+vsBase(h)+'</td></tr>').join('');
+  const players=[...new Set(hrvHist.map(h=>h.jugador))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true})), sel=$('#hPlayer'), cur=sel.value;
+  const opts='<option value="">Todos los jugadores</option>'+players.map(p=>'<option>'+esc(p)+'</option>').join(''); if(sel.dataset.sig!==opts){ sel.innerHTML=opts; sel.dataset.sig=opts; sel.value=players.includes(cur)?cur:''; }
+  const hist=hrvHist.filter(h=>!sel.value||h.jugador===sel.value).slice().reverse().slice(0,200);
+  $('#hHist').innerHTML=hist.length?hist.map(h=>'<tr><td>'+new Date(h.fecha).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'})+'</td><td>'+esc(h.jugador)+'</td><td>'+esc(h.posicion)+'</td><td>'+mmss(h.dur)+'</td><td class="num">'+fmt(h.hr)+'</td><td class="num">'+fmt(h.rmssd,1)+'</td><td>'+fmt(h.ln,2)+'</td><td>'+fmt(h.resp)+'</td><td>'+vsBase(h)+'</td></tr>').join(''):'<tr><td colspan="9" style="text-align:left;color:var(--muted)">Todavía no hay tests guardados.</td></tr>'; }
+function renderEcgView(){ document.querySelectorAll('[data-sub]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.sub===sub)));
+  $('#pEcg').hidden=sub!=='ecg'; $('#pHrv').hidden=sub!=='hrv';
+  if(sub==='ecg'){ refreshEcgDevices(); updEcgUi(); renderEcgSaved(); if(!ecg.live) drawLive(); else ecgStatus(); if(ecg.review) drawReview(); } else renderHrv(); }
+function csvSave(csv,name){ (async()=>{ try{const f=new File([csv],name,{type:'text/csv'}); if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return}}catch(e){}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();}catch(e){}
+  try{await navigator.clipboard.writeText(csv);log('CSV copiado al portapapeles')}catch(e){} })(); }
+window.addEventListener('resize',()=>{ if(view==='ecg'&&sub==='ecg'){ drawLive(); drawReview(); } });
+
+/* ---------- CSV, ajustes, nombres ---------- */
+function toCsv(rows){ if(!rows.length)return''; const cols=[...new Set(rows.flatMap(r=>Object.keys(r)))]; return [cols.join(',')].concat(rows.map(r=>cols.map(c=>{const v=String(r[c]??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(','))).join('\n'); }
+async function exportCsv(){
+  const sum=[...bands.values()].filter(b=>!b.removed&&b.acc.t>0).map(b=>{ const l=label(b), s=stats(b.acc,l);
+    return {jugador:l,banda:b.bandKey().slice(3),fc_max_config:hrmaxOf(l),tiempo:hms(s.t),fc_media:Math.round(s.avg),fc_max:s.max,pct_max:Math.round((s.pmax||0)*100),z1:mmss(s.z[1]),z2:mmss(s.z[2]),z3:mmss(s.z[3]),z4:mmss(s.z[4]),z5:mmss(s.z[5]),carga:Math.round(s.trimp),kcal:Math.round(s.kcal),esfuerzo:s.eff,recup_ultima:b.hrrLast?b.hrrLast.drop:'',vo2max_est:(v=>v?v.toFixed(1):'')(vo2Of(l))}; });
+  const blk=closedBlocks.map(c=>({jugador:c.jugador,bloque:c.bloque,duracion:mmss(c.duracion),fc_media:Math.round(c.avg||0),fc_max:c.max,z4:mmss(c.z4),z5:mmss(c.z5),carga:Math.round(c.trimp),kcal:Math.round(c.kcal||0),esfuerzo:c.eff}));
+  const hr_=hrrList.map(h=>({jugador:h.jugador,momento:h.momento,bloque:h.bloque,fc_al_terminar:h.start,fc_60s:h.end,recuperacion_lpm:h.drop}));
+  const csv=[toCsv(sum),toCsv(blk),toCsv(hr_),toCsv(history)].filter(Boolean).join('\n\n');
+  if(!csv){ log('Todavía no hay datos: iniciá una sesión'); return; }
+  const name='trakfc_'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.csv';
+  try{const f=new File([csv],name,{type:'text/csv'}); if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return}}catch(e){}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();}catch(e){}
+  try{await navigator.clipboard.writeText(csv);log('CSV copiado al portapapeles')}catch(e){} }
+function namesJson(){ const o={}; for(const b of bands.values()) if(!b.key.startsWith('demo')&&!names[b.bandKey()]) o[b.bandKey()]=''; Object.assign(o,names); for(const k of Object.keys(o)) if(/DEMO/.test(k))delete o[k]; return JSON.stringify(o,null,2); }
+function openCfg(){ $('#cMax').value=cfg.hrmax; $('#cStale').value=cfg.stale; $('#cAlOn').checked=cfg.alerts.on; $('#cAlSnd').checked=cfg.alerts.sound; $('#cAlPct').value=cfg.alerts.pct; $('#cAlZ5').value=cfg.alerts.z5s; $('#nText').value=namesJson(); $('#nSrc').textContent=rosterInfo+' Si TrakFC está en el mismo sitio que TrakLive, comparten nombres y FC máxima.'; $('#nMsg').textContent=''; $('#ovC').hidden=false; }
+function saveCfg(){ cfg.hrmax=Math.min(240,Math.max(120,+$('#cMax').value||195)); cfg.stale=Math.min(60,Math.max(4,+$('#cStale').value||10)); cfg.alerts={on:$('#cAlOn').checked,sound:$('#cAlSnd').checked,pct:Math.min(100,Math.max(70,+$('#cAlPct').value||92)),z5s:Math.min(900,Math.max(15,+$('#cAlZ5').value||120))}; if(cfg.alerts.sound) initAudio(); store.set('trakfc.cfg',cfg); $('#ovC').hidden=true; render(); }
+let wakeLock=null;
+async function keepAwake(){try{if('wakeLock' in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>wakeLock=null)}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&bands.size)keepAwake()});
+
+/* ---------- Eventos ---------- */
+$('#btnAdd').addEventListener('click',addBand);
+$('#btnAnt').addEventListener('click',openAnt);
+$('#btnPlaca').addEventListener('click',startPlaca);
+$('#histBody').addEventListener('click',e=>{ const t=e.target.closest('[data-hopen]'); if(!t)return; histCur=histList.find(x=>String(x.id)===t.dataset.hopen)||null; renderHist(); });
+$('#hBack').addEventListener('click',()=>{ histCur=null; renderHist(); });
+$('#hPdf').addEventListener('click',()=>{ if(histCur) sessionPdf(histCur); });
+$('#hCsvS').addEventListener('click',()=>{ if(histCur) histCsv(histCur); });
+$('#hRen').addEventListener('click',async()=>{ if(!histCur)return; const n=prompt('Nombre de la sesión',histCur.title||''); if(n==null)return; histCur.title=n.trim().slice(0,80); if(sess.t0===histCur.id){ sess.title=histCur.title; $('#sTitle').value=sess.title; } await DB.put(histCur); renderHistDet(); });
+$('#hDel').addEventListener('click',async()=>{ const b=$('#hDel'); if(!histCur)return; if(!b.dataset.arm){ b.dataset.arm='1'; b.textContent='¿Borrar?'; setTimeout(()=>{ delete b.dataset.arm; b.textContent='Borrar'; },3000); return; } delete b.dataset.arm; b.textContent='Borrar'; await DB.del(histCur.id); histCur=null; renderHist(); });
+window.addEventListener('resize',()=>{ if(view==='hist'&&histCur) drawHistChart(histCur,archCtx(histCur)); });
+$('#btnSaved').addEventListener('click',connectSaved);
+$('#btnDemo').addEventListener('click',demo);
+$('#btnPlay').addEventListener('click',playPause);
+$('#btnStop').addEventListener('click',stopSession);
+$('#btnBlock').addEventListener('click',newBlock);
+$('#btnCsv').addEventListener('click',exportCsv);
+$('#btnCfg').addEventListener('click',openCfg);
+$('#cCancel').addEventListener('click',()=>{$('#ovC').hidden=true});
+$('#cSave').addEventListener('click',saveCfg);
+$('#empty').addEventListener('click',e=>{ const a=e.target.closest('[data-act]'); if(!a)return; if(a.dataset.act==='add')addBand(); else demo(); });
+if(onPlaca){ const ea=document.querySelector('#empty [data-act="add"]'); if(ea&&!navigator.bluetooth) ea.hidden=true; }
+document.querySelectorAll('.seg button[data-view]').forEach(x=>x.addEventListener('click',()=>setView(x.dataset.view)));
+$('#selSort').value=sortMode; $('#selSort').addEventListener('change',e=>{sortMode=e.target.value;store.set('trakfc.sort',sortMode);render();});
+$('#selScope').addEventListener('change',e=>{scope=e.target.value;render();});
+$('#sPdf').addEventListener('click',()=>sessionPdf());
+$('#sTitle').value=sess.title=store.get('trakfc.title','');
+$('#sTitle').addEventListener('input',e=>{ sess.title=e.target.value; store.set('trakfc.title',sess.title); });
+$('#sObs').addEventListener('input',e=>{ sess.obs=e.target.value; });
+document.querySelector('main').addEventListener('click',e=>{ const t=e.target.closest('[data-k]'); if(t)openDetail(t.dataset.k); });
+$('#dClose').addEventListener('click',closeDetail);
+$('#ovD').addEventListener('click',e=>{if(e.target.id==='ovD')closeDetail()});
+$('#ovC').addEventListener('click',e=>{if(e.target.id==='ovC')$('#ovC').hidden=true});
+$('#dName').addEventListener('change',()=>{ const b=bands.get(openKey); if(!b)return; const old=label(b), v=$('#dName').value.trim();
+  if(v){ names[b.bandKey()]=v; if(pcfg[old]&&!pcfg[v]){ pcfg[v]=pcfg[old]; store.set('traklive.player',pcfg); } } else delete names[b.bandKey()];
+  store.set('traklive.names',names); placaPush(b); render(); });
+const setProf=(k,v)=>{ const b=bands.get(openKey); if(!b)return; const l=label(b); pcfg[l]=Object.assign({},pcfg[l],{[k]:v}); store.set('traklive.player',pcfg); render(); };
+$('#dRep').addEventListener('change',()=>{ const v=+$('#dRep').value; setProf('fcrep',v>=30&&v<=110?v:undefined); });
+$('#dPeso').addEventListener('change',()=>{ const v=+$('#dPeso').value; setProf('peso',v>=40&&v<=160?v:undefined); });
+$('#dEdad').addEventListener('change',()=>{ const v=+$('#dEdad').value; setProf('edad',v>=12&&v<=70?v:undefined); });
+$('#dSexo').addEventListener('change',()=>setProf('sexo',$('#dSexo').value));
+$('#btnHrr').addEventListener('click',startHrr);
+$('#dMax').addEventListener('change',()=>{ const b=bands.get(openKey); if(!b)return; const l=label(b), v=+$('#dMax').value;
+  pcfg[l]=Object.assign({},pcfg[l],{hrmax:v>=120&&v<=240?v:undefined}); store.set('traklive.player',pcfg); placaPush(b); render(); });
+$('#dNum').addEventListener('change',()=>{ const b=bands.get(openKey); if(!b||b.kind!=='Placa')return; const v=$('#dNum').value.trim(); b.num=v; placaGet('/api/assign?mac='+encodeURIComponent(b.mac)+'&num='+encodeURIComponent(v)).then(()=>log('Placa: banda',b.mac,'ahora es N°',v||'(sin número)')).catch(()=>log('Placa: no se pudo guardar el número')); render(); });
+$('#dRemove').addEventListener('click',()=>{ const b=bands.get(openKey); if(b){ b.remove(); bands.delete(b.key); } closeDetail(); render(); refreshSaved(); });
+$('#nCopy').addEventListener('click',async()=>{ const t=$('#nText'); try{ await navigator.clipboard.writeText(t.value); $('#nMsg').textContent='Copiado'; }catch(e){ t.focus(); t.select(); $('#nMsg').textContent='Texto seleccionado: copialo con el menú'; } });
+$('#nApply').addEventListener('click',()=>{ try{ const j=JSON.parse($('#nText').value); for(const [k,v] of Object.entries(j)) if(typeof v==='string'){ if(v.trim())names[k]=v.trim(); else delete names[k]; } store.set('traklive.names',names); $('#nMsg').textContent='Nombres aplicados'; render(); }catch(e){ $('#nMsg').textContent='El texto no tiene el formato correcto'; } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeDetail(); $('#ovC').hidden=true; } });
+document.querySelectorAll('[data-sub]').forEach(x=>x.addEventListener('click',()=>{ sub=x.dataset.sub; store.set('trakfc.sub',sub); renderEcgView(); if(sub==='ecg'){ drawLive(); drawReview(); } }));
+$('#eLive').addEventListener('click',()=>{ ecg.live?ecgLiveStop():ecgLiveStart(); });
+$('#eRec').addEventListener('click',ecgRecord);
+$('#eSaved').addEventListener('click',e=>{ const t=e.target.closest('[data-ecg]'); if(!t)return; const it=ecgSaved.find(x=>String(x.id)===t.dataset.ecg); if(it){ showReview(it); $('#eReview').scrollIntoView({behavior:'smooth',block:'start'}); } });
+$('#rPdf').addEventListener('click',()=>{ if(ecg.review) ecgPdf(ecg.review); });
+$('#rObs').addEventListener('change',()=>{ const it=ecg.review; if(!it)return; it.obs=$('#rObs').value.trim(); store.set('trakfc.ecg',ecgSaved); });
+$('#rCsv').addEventListener('click',()=>{ const it=ecg.review; if(!it)return; csvSave('tiempo_s,uV\n'+it.s.map((v,i)=>(i/FS).toFixed(4)+','+v).join('\n'),'ecg_'+it.jugador.replace(/[^\w-]+/g,'_')+'_'+it.fecha.slice(0,16).replace(/[:T]/g,'-')+'.csv'); });
+$('#rDel').addEventListener('click',()=>{ const it=ecg.review; if(!it)return; const b=$('#rDel'); if(!b.dataset.arm){ b.dataset.arm='1'; b.textContent='¿Borrar?'; setTimeout(()=>{ delete b.dataset.arm; b.textContent='Borrar'; },3000); return; }
+  delete b.dataset.arm; b.textContent='Borrar'; ecgSaved=ecgSaved.filter(x=>x.id!==it.id); store.set('trakfc.ecg',ecgSaved); ecg.review=null; $('#eReview').hidden=true; renderEcgView(); });
+$('#hGo').addEventListener('click',hrvStart);
+$('#hPlayer').addEventListener('change',renderHrv);
+$('#hCsv').addEventListener('click',()=>{ if(!hrvHist.length){ log('No hay tests de VFC guardados'); return; } csvSave(toCsv(hrvHist.map(h=>({fecha:h.fecha,jugador:h.jugador,posicion:h.posicion,duracion_s:h.dur,fc_media:Math.round(h.hr),resp_min:h.resp?Math.round(h.resp):'',rmssd_ms:h.rmssd.toFixed(1),ln_rmssd:h.ln.toFixed(3),sdnn_ms:h.sdnn.toFixed(1),latidos:h.n,artefactos_pct:Math.round(h.art*100)}))),'trakfc_vfc_'+new Date().toISOString().slice(0,10)+'.csv'); });
+if(navigator.usb) navigator.usb.addEventListener('disconnect',e=>{ if(antStick&&e.device===antStick.dev){ antStick.open_=false; log('Se desenchufó la antena ANT+'); updateAntButton(); } });
+if(!navigator.bluetooth&&!onPlaca) $('#noBle').hidden=false;
+window.__trakfc={placa,placaPoll,saveSession,snapshot,DB,respRate,spectrum,respFromRR,kcalMin,effortOf,startHrr,hrr,describeEcg,feedHr,bands,sess,elapsed,parsePmdEcg,detectR,analyzeEcg,cleanRR,hrvStats,pushRR,hrv,ecg,antHr,sessionPdf,demo,playPause,newBlock};
+setPlay(); render(); refreshSaved(); loadRoster(); updateAntButton(); resumeSession(); if(view==='hist') renderHist();
+if(onPlaca){ $('#btnAdd').hidden=!navigator.bluetooth; $('#emptyPlaca').innerHTML='La <b>placa TrakFC</b> conecta sola las bandas que estén puestas: aparecen acá en unos segundos.'; startPlaca(); }
+// Vista previa dentro de claude.ai (sin Bluetooth): arranca con jugadores de ejemplo
+let framed=false; try{ framed=window.self!==window.top; }catch(e){ framed=true; }
+if(framed&&!bands.size){ demo(); setTimeout(()=>{ if(sess.state==='idle') playPause(); },1500); }
 })();
-
-pollState();
-Ecg.resize();
 </script>
-</body>
-</html>
+</body></html>
